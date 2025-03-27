@@ -18,3 +18,5 @@ Imports:
     tidyr,
     fastDummies,
     stringr
+URL: https://github.com/LarsVatten/MAPCtools
+BugReports: https://github.com/LarsVatten/MAPCtools/issues
