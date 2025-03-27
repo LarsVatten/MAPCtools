@@ -2,7 +2,7 @@
 % Please edit documentation in R/MAPCtools.R
 \name{generate_apc_lincombs}
 \alias{generate_apc_lincombs}
-\title{Generate linear combinations for estimation of MAPC models in INLA}
+\title{Generate APC Linear Combinations}
 \usage{
 generate_apc_lincombs(apc_format, data)
 }
@@ -15,8 +15,5 @@ generate_apc_lincombs(apc_format, data)
 Object of linear combinations that can be passed to INLA.
 }
 \description{
-Generates the proper linear combination object that can be passed to INLA to define linear combinations of linear predictors in an MAPC model.
-}
-\details{
-Depends on the configurations of shared vs. stratum-specific time effects. Lowercase letters in "APC" indicates time effect is stratum-specific, upper-case indicates time effect is shared.
+Generates the proper linear combination object that can be passed to INLA to define linear combinations of linear predictors in an MAPC model. Depends on the configurations of shared vs. stratum-specific time effects. Lowercase letters in "APC" indicates time effect is stratum-specific, upper-case indicates time effect is shared.
 }

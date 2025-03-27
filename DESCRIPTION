@@ -16,6 +16,7 @@ Imports:
     INLA,
     roxygen2,
     tidyr,
+    tidyselect,
     fastDummies,
     stringr
 URL: https://github.com/LarsVatten/MAPCtools
