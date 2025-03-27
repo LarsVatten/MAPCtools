@@ -1,0 +1,20 @@
+Package: MAPCtools
+Title: MAPCtools
+Version: 0.0.0.9000
+Authors@R: 
+    person("Lars", "Vatten", , "larv@stud.ntnu.no", role = c("aut", "cre"),
+           comment = c(ORCID = "YOUR-ORCID-ID"))
+Description: Methods for analyzing health data using multivariate APC (MAPC) models.
+License: `use_mit_license()`, `use_gpl3_license()` or friends to pick a
+    license
+Encoding: UTF-8
+Roxygen: list(markdown = TRUE)
+RoxygenNote: 7.3.2
+Imports: 
+    devtools,
+    dplyr,
+    INLA,
+    roxygen2,
+    tidyr,
+    fastDummies,
+    stringr
