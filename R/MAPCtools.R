@@ -4,8 +4,8 @@
 #   Check Package:             'Ctrl + Shift + E'
 #   Test Package:              'Ctrl + Shift + T'
 
-# This file is meant to serve as a library for the aggregation of grouped data
-# into inla.mdata objects that can be used with the agaussian likelihood in the R-INLA package
+# This file serves as a library for analyzing age-period-cohort data,
+# and for fitting Bayesian multivariate APC models with INLA
 
 ##############################################################################
 ### Imports:
@@ -21,7 +21,7 @@
 
 #' @title Group data frame
 #'
-#' @description Groups data into groups indicated by specified grouping and stratification variables.
+#' @description Groups data into groups specified by variables \code{group_by} and \code{stratify_by}.
 #'
 #' @param df A data frame to group.
 #' @param group_by Variables in data frame to group data by.
@@ -689,3 +689,6 @@ generate_MAPC_formula <- function(df, APC_format, stratify_var, model="rw1", ran
   formula_string <- paste(formula_terms, collapse = " +\n")  # Add line breaks for readability
   return(as.formula(formula_string))
 }
+
+
+search()
