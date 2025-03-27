@@ -5,7 +5,7 @@
 #   Test Package:              'Ctrl + Shift + T'
 
 # This file serves as a library for analyzing age-period-cohort data,
-# and for fitting Bayesian multivariate APC models with INLA
+# and for fitting Bayesian multivariate APC models with INLA. Test git
 
 ##############################################################################
 ### Imports:
