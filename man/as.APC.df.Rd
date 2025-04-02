@@ -2,20 +2,25 @@
 % Please edit documentation in R/DataPreprocessing.R
 \name{as.APC.df}
 \alias{as.APC.df}
-\title{Create APC data frame}
+\title{Add 1-indexed APC columns to data frame, and reorders rows: first by age, then by period.}
 \usage{
-as.APC.df(df, age, period)
+as.APC.df(df, age = NULL, period = NULL)
 }
 \arguments{
-\item{df}{Data frame with age and period columns}
+\item{df}{Data frame with age and period column.}
 
-\item{age}{Age column}
+\item{age}{Name of age column in data frame. \cr
+\strong{Defaults to \code{"age"} if not specified.}}
 
-\item{period}{Period column}
+\item{period}{Name of period column in data frame. \cr
+\strong{Defaults to \code{"period"} if not specified.}}
 }
 \value{
-Data frame with 1-indexed age, period and cohort columns.
+Data frame with index columns for age, period and cohort, reordered by age and period.
 }
 \description{
-Creates 1-indexed age, period and cohort columns indicating age-period-cohort groups.
+Adds 1-indexed columns for age, period and cohort to a data frame with age and period columns.
+\cr \code{age_index = age - min(age) + 1}
+\cr \code{period_index = period - min(period) + 1}
+\cr \code{cohort_index = period_index - age_index + max(age_index)}
 }

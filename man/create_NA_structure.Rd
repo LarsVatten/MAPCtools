@@ -18,21 +18,21 @@ create_NA_structure(
 
 \item{stratify_var}{Stratification variable to create an NA indicator structure for.}
 
-\item{include.random}{Whether to include an index for each group, for random error terms in MAPC models.
-
-** Defaults to FALSE (optional)**}
-
-\item{age}{Name of age column.
+\item{age_col}{Name of age column.
 
 \strong{Defaults to "age" (optional).}}
 
-\item{period}{Name of period column.
+\item{period_col}{Name of period column.
 
 \strong{Defaults to "period" (optional).}}
 
-\item{cohort}{Name of cohort column.
+\item{cohort_col}{Name of cohort column.
 
 \strong{Defaults to "cohort" (optional).}}
+
+\item{include.random}{Whether to include an index for each group, for random error terms in MAPC models.
+
+** Defaults to FALSE (optional)**}
 }
 \value{
 Data frame with NA structure across age-period-cohort groups and strata.

@@ -5,19 +5,20 @@ Authors@R:
     person("Lars", "Vatten", , "larv@stud.ntnu.no", role = c("aut", "cre"),
            comment = c(ORCID = "YOUR-ORCID-ID"))
 Description: Methods for analyzing health data using multivariate APC (MAPC) models.
-License: `use_mit_license()`, `use_gpl3_license()` or friends to pick a
-    license
+License: MIT + file LICENSE
 Encoding: UTF-8
 Roxygen: list(markdown = TRUE)
 RoxygenNote: 7.3.2
 Imports: 
-    devtools,
     dplyr,
     INLA,
-    roxygen2,
     tidyr,
     tidyselect,
     fastDummies,
-    stringr
+    stringr,
+    rlang
 URL: https://github.com/LarsVatten/MAPCtools
 BugReports: https://github.com/LarsVatten/MAPCtools/issues
+Suggests: 
+    testthat (>= 3.0.0)
+Config/testthat/edition: 3
