@@ -2,8 +2,7 @@ Package: MAPCtools
 Title: MAPCtools
 Version: 0.0.0.9000
 Authors@R: 
-    person("Lars", "Vatten", , "larv@stud.ntnu.no", role = c("aut", "cre"),
-           comment = c(ORCID = "YOUR-ORCID-ID"))
+    person("Lars", "Vatten", , "larv@stud.ntnu.no", role = c("aut", "cre"))
 Description: Methods for analyzing health data using multivariate APC (MAPC) models.
 License: MIT + file LICENSE
 Encoding: UTF-8
