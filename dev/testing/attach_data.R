@@ -14,4 +14,12 @@ NHIS_data <- NHIS_data %>% rename(period=year)
 load("dev/testing/data.RData")
 message('Attached cleaned NHIS data as "data".')
 
+# Cleaned female data:
+load("dev/testing/female_data.RData")
+message('Attached cleaned female data as "female_data".')
+
+# Cleaned male data:
+load("dev/testing/male_data.RData")
+message('Attached cleaned male data as "male_data".')
+
 

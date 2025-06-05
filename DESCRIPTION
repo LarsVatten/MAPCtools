@@ -11,14 +11,18 @@ Roxygen: list(markdown = TRUE)
 RoxygenNote: 7.3.2
 Imports: 
     dplyr,
-    INLA,
-    tidyr,
     tidyselect,
     fastDummies,
     stringr,
-    rlang
+    rlang,
+    ggplot2,
+    viridis
 URL: https://github.com/LarsVatten/MAPCtools
 BugReports: https://github.com/LarsVatten/MAPCtools/issues
 Suggests: 
-    testthat (>= 3.0.0)
+    testthat (>= 3.0.0),
+    INLA
 Config/testthat/edition: 3
+Depends: 
+    R (>= 3.5)
+LazyData: true
