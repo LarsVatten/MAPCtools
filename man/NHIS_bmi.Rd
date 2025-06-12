@@ -5,19 +5,19 @@
 \alias{NHIS_bmi}
 \title{NHIS dataset with recordings of body mass index (BMI)}
 \format{
-A tibble with 671208 rows and 9 variables:
+A data frame with 671,208 rows and 9 variables:
 \describe{
 \item{year}{Survey year}
 \item{age}{Age of respondents}
-\item{educaion}{Level of educational attainment of respondents, coded as:
+\item{education}{Level of educational attainment of respondents, coded as:
 \enumerate{
 \item Less than high school / General Educational Development (GED)
-\item High school diploma
-\item Some college or Associate of Arts (AA) degree
-\item Bachelor's degree or higher
+\item High school diploma (HS)
+\item Some college or Associate of Arts degree (SC/AA)
+\item Bachelor's degree or higher (BA+)
 }
 }
-\item{race}{Self-reported race of responsents, coded as:
+\item{race}{Self-reported race of respondents, coded as:
 \enumerate{
 \item White
 \item Black
@@ -25,27 +25,35 @@ A tibble with 671208 rows and 9 variables:
 \item Other
 }
 }
-\item{female}{Sex of respondents, code as:
+\item{female}{Sex of respondents, coded as:
 \enumerate{
 \item Female
 \item Male
 }
 }
-\item{bmi}{Body mass index (BMI) of respondents, calculated as \eqn{BMI = \frac{weight\ [kg]}{height\ [m]^2}}.}
+\item{bmi}{Body mass index (BMI), calculated as \eqn{BMI = \frac{weight\ [kg]}{height\ [m]^2}}.}
 \item{strata}{Stratum identifier, for variance estimation.}
-\item{psu}{Primary sampling unit identifier, for variance estimation}
+\item{psu}{Primary sampling unit identifier, for variance estimation.}
 \item{sampweight}{Survey weight, post-stratified.}
 }
 }
 \source{
-Data from the National Health Interview Survey (NHIS).
+IPUMS NHIS extract, downloaded from \url{https://nhis.ipums.org}. Data redistribution permitted under IPUMS approval for replication purposes only. See details above.
 }
 \usage{
 NHIS_bmi
 }
 \description{
-This dataset includes BMI recordings of civilians residing in the US, aged 25-85+. Observations are at the individual level and have been anonymized.
-The data are form the survey years 1997-2023. For information about the NHIS, see \url{https://www.cdc.gov/nchs/nhis/index.html}.
+This dataset includes BMI recordings of US civilians aged 25-85+, drawn from the IPUMS Health Surveys: National Health Interview Survey (NHIS), for the years 1997-2023, available from \url{nhis.ipums.org}.
+Observations are at the individual level and have been anonymized.
 Basic preprocessing steps (e.g., filtering by age, harmonizing variable names) were applied to standardize the data for use in this package.
+}
+\details{
+This data file is intended only for replication purposes as part of the \code{MAPCtools} package.
+Individuals are not to redistribute the data without permission. Contact \email{ipums@umn.edu} for redistribution requests.
+For all other uses of these data, please access data directly via \url{nhis.ipums.org}.
+
+\strong{Citation:}
+Lynn A. Blewett, Julia A. Rivera Drew, Miriam L. King, Kari C.W. Williams, Daniel Backman, Annie Chen, and Stephanie Richards. \emph{IPUMS Health Surveys: National Health Interview Survey, Version 7.4 \link{dataset}. Minneapolis, MN: IPUMS, 2024}. \doi{10.18128/D070.V7.4}
 }
 \keyword{datasets}

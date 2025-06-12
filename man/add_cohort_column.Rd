@@ -4,16 +4,16 @@
 \alias{add_cohort_column}
 \title{Add cohort column to data frame}
 \usage{
-add_cohort_column(df, age = NULL, period = NULL)
+add_cohort_column(data, age, period, cohort_name = "cohort")
 }
 \arguments{
-\item{df}{Data frame with age and period column.}
+\item{data}{Data frame with age and period column.}
 
-\item{age}{Name of age column in data frame. \cr
-\strong{Defaults to \code{"age"} if not specified.}}
+\item{age}{Age column in \code{data}.}
 
-\item{period}{Name of period column in data frame. \cr
-\strong{Defaults to \code{"period"} if not specified.}}
+\item{period}{Period column in \code{data}.}
+
+\item{cohort_name}{Name of the cohort column to be created. Defaults to \code{"cohort"}.}
 }
 \value{
 Data frame with additional column for birth cohorts added.

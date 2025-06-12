@@ -4,20 +4,20 @@
 \alias{expected_groups}
 \title{Find expected groups based on distinct values across a set of variables}
 \usage{
-expected_groups(df, vars)
+expected_groups(data, vars)
 }
 \arguments{
-\item{df}{A data frame whose columns you want to examine.}
+\item{data}{A data frame whose columns you want to examine.}
 
-\item{vars}{Character vector of column names in \code{df} to use.}
+\item{vars}{Character vector of column names in \code{data} to use.}
 }
 \value{
 A named list with two elements:
 \describe{
 \item{grid}{A data.frame where each row is one combination of the variable levels
-(equivalent to what \code{expand.grid()} would produce).}
+(equivalent to what \code{\link{expand.grid}} would produce).}
 \item{levels}{A named list; for each variable in \code{vars} it gives the sorted
-unique values (or factor levels) observed in \code{df}.}
+unique values (or factor levels) observed in \code{data}.}
 }
 }
 \description{

@@ -5,19 +5,17 @@
 \title{Aggregate data across an entire data frame using sufficient statistics}
 \usage{
 aggregate_df(
-  df,
+  data,
   gaussian = NULL,
   gaussian.precision.scales = NULL,
-  binomial = NULL,
-  multinomial = NULL,
-  multinomial.categories = NULL
+  binomial = NULL
 )
 }
 \arguments{
-\item{df}{A data frame.}
+\item{data}{A data frame.}
 
-\item{gaussian}{Vector of names for the Gaussian columns to be aggregated using \code{gaussian_aggregator}. \cr
-\strong{Defaults to NULL (optional).}}
+\item{gaussian}{Gaussian columns in \code{data} to be aggregated. The Gaussian observations are collapsed into an \code{inla.mdata} object compatible with the \code{agaussian} family, see \code{\link[INLA]{agaussian}} for details.
+\strong{Defaults to \code{NULL} (optional).}}
 
 \item{gaussian.precision.scales}{Scales for the precision of Gaussian observations. \cr
 Must be one of: \cr
@@ -25,27 +23,19 @@ Must be one of: \cr
 \item \code{NULL}: Use default scales of 1 for all observations in all \code{gaussian} columns.
 \item A single numeric vector: Applied only if \emph{exactly one} column is specified in \code{gaussian}. Length must match \code{nrow(data)}.
 \item A \emph{named list}: Where \code{names(gaussian.precision.scales)} are the names of the Gaussian columns (must match columns specified in \code{gaussian}). Each list element must be a numeric vector of scales for that column, with length matching \code{nrow(data)}. \cr
-\strong{Defaults to NULL.}
+\strong{Defaults to NULL (optional).}
 }}
 
-\item{binomial}{Vector of names for the binomial columns to be aggregated using \code{binomial_aggregator}. \cr
-\strong{Defaults to NULL (optional).}}
-
-\item{multinomial}{Vector of names for the multinomial columns to be aggregated using \code{multinomial_aggregator}. \cr
-\strong{Defaults to NULL (optional).}}
-
-\item{multinomial.categories}{A named list where names correspond to columns in \code{multinomial},
-and each element is a character vector of all possible categories for that multinomial variable.
-If \code{NULL} for a given column, categories are inferred from the data (may lead to inconsistency if some categories aren't present).
-\strong{Defaults to NULL (infer all categories).}}
+\item{binomial}{Binomial columns in \code{data} to be aggregated.
+\strong{Defaults to \code{NULL} (optional).}}
 }
 \value{
 A single-row data frame (tibble) containing:
 \itemize{
-\item A column 'n' with the total number of rows in the input data.
-\item For each specified column in \code{gaussian}, \code{binomial}, \code{multinomial}, a corresponding
-\emph{list-column} (named e.g., \code{colname_gaussian}, \code{colname_binomial}, \code{colname_multinomial}).
-Each element of this list-column can be accessed by using the \code{$} operator twice, e.g. through \code{df$colname_gaussian$Y1}.
+\item A column \code{n} with the total number of rows in the input data.
+\item For each specified column in \code{gaussian}, \code{binomial}, a corresponding
+\emph{list-column} (named e.g., \code{colname_gaussian}, \code{colname_binomial}.
+Each element of these list-columns can be accessed by using the \code{$} operator twice, e.g. through \code{data$colname_gaussian$Y1} for the first element of the Gaussian summary.
 }
 }
 \description{
@@ -53,6 +43,6 @@ Aggregates specified columns of a data frame into summarizing statistics,
 preserving the potentially complex structure returned by aggregator functions
 (like data frames or inla.mdata objects) within list-columns.
 Aggregation is performed according to sufficient statistics for the specified
-distribution of the columns. Possible distributions: Gaussian, binomial, multinomial.
+distribution of the columns. Possible distributions: Gaussian, binomial.
 This function aggregates the entire data frame into a single row result.
 }

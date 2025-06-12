@@ -7,11 +7,12 @@
 # This file serves as a the source file for functions used to
 # estimate Bayesian multivariate APC models with INLA.
 
+# Suppress warnings due to tidy NSE:
 utils::globalVariables(c(
   "age_index","period_index","cohort_index",
   "cohort","Strata","Stratum","x",
   "median_differences","hpd_lower","hpd_upper",
-  "._offset_temp_"
+  "._offset_temp_", "strata_col_name", "apc_format"
 ))
 
 ##############################################################################
@@ -19,7 +20,7 @@ utils::globalVariables(c(
 
 #' @importFrom dplyr setdiff mutate
 #' @importFrom stringr str_split
-#' @importFrom rlang quo_is_null enquo
+#' @importFrom rlang quo_is_null enquo eval_tidy
 NULL
 
 ##############################################################################
@@ -328,15 +329,25 @@ generate_MAPC_formula <- function(df, APC_format, response, stratify_var, apc_pr
 #'
 #' @param data              A \code{data.frame} containing the raw age, period, response, and stratification variables.
 #' @param response          A string naming the response (outcome) variable in \code{data}.
-#' @param apc_format        A specification of the APC structure (e.g. "APC", "AC", "AP", etc.), passed to the formula generator.
-#' @param family            Likelihood family of the response variable
-#' @param strata_col        A string naming the column in \code{data} to use for stratification (e.g. region or sex).
-#' @param reference_strata  Optional; value(s) of \code{strata_col} to set as the reference level(s). Defaults to \code{NULL}.
+#' @param apc_format        A specification of the APC structure, with options:
+#'                          \describe{
+#'                           \item{APc}{Shared age and period effects, stratum-specific cohort effects.}
+#'                           \item{ApC}{Shared age and cohort effects, stratum-specific period effects.}
+#'                           \item{aPC}{Shared period and cohort effects, stratum-specific age effects.}
+#'                           \item{Apc}{Shared age effects, stratum-specific period and cohort effects.}
+#'                           \item{aPc}{Shared period effects, stratum-specific age and cohort effects.}
+#'                           \item{apC}{Shared cohort effects, stratum-specific age and period effects.}
+#'                          }
+#'                          Note: It is also possible to specify models with only one or two time effects, by omitting the letters corresponding to the time effects to be omitted.
+#' @param family            A string indicating the likelihood family. The default is \code{"gaussian"} with identity link.
+#'                          See \code{names(inla.models()$likelihood)} for a list of possible alternatives and use \code{inla.doc()} for detailed docs for individual families.
+#' @param stratify_by       A string naming the column in \code{data} to use for stratification (e.g. region or sex).
+#' @param reference_strata  Optional; value of \code{strata_col} to set as the reference level. Defaults to \code{NULL}.
 #' @param age               Name of the age variable in \code{data}. Defaults to \code{"age"}.
 #' @param period            Name of the period variable in \code{data}. Defaults to \code{"period"}.
 #' @param apc_prior         A string specifying the prior for the age, period, and cohort effects (e.g. \code{"rw1"}, \code{"rw2"}). Defaults to \code{"rw1"}.
-#' @param random            Logical; if \code{TRUE}, include an overall random effect in the APC model. Defaults to \code{TRUE}.
-#' @param control.compute   A list of control.compute options passed to \code{INLA} (e.g. \code{config}, \code{dic}, \code{waic}, \code{cpo}). Defaults to \code{list(config=TRUE, dic=TRUE, waic=TRUE, cpo=TRUE)}.
+#' @param random            Logical; if \code{TRUE}, include an overall random effect in the APC model, to capture unobserved heterogeneity. Defaults to \code{FALSE}.
+#' @param control.compute   A list of control variables passed to \code{INLA}, that specifies what to be computed during model fitting. See \code{\link[INLA]{control.compute}} for options. Defaults to \code{list(config=TRUE, dic=TRUE, waic=TRUE, cpo=TRUE)}.
 #' @param binomial.n        For the \code{family=binomial} likelihood. Either an integer giving the number of trials for the binomial response, or the name of the column containing the number of trials for each observation.
 #' @param poisson.offset    For the \code{family=poisson} likelihood. Either an integer giving the denominator for the Poisson count response, or the name of the column containing the denominator for each observation.
 #' @param verbose           This is argument is passed along to the \code{inla()} function that estimates the MAPC model. If \code{verbose=TRUE}, the \code{inla}-program runs in verbose mode, which can provide more informative error messages.
@@ -351,20 +362,20 @@ generate_MAPC_formula <- function(df, APC_format, response, stratify_var, apc_pr
 #' \dontrun{
 #' fit <- fit_MAPC(
 #'   data               = mydata,
-#'   response           = "deaths",
-#'   apc_format         = "APC",
-#'   strata_col         = "region",
-#'   reference_strata   = "North",
-#'   age                = "age_group",
-#'   period             = "year",
+#'   response           = deaths,
+#'   apc_format         = Apc,
+#'   strata_col         = region,
+#'   reference_strata   = North,
+#'   age                = age_group,
+#'   period             = year,
 #'   apc_prior          = "rw1",
 #'   random             = TRUE
 #' )
 #' }
 #'
 #' @export
-fit_MAPC <- function(data, response, apc_format, family, strata_col, reference_strata=NULL,
-                     age="age", period="period", apc_prior="rw1", random=T,
+fit_MAPC <- function(data, response, apc_format, family, stratify_by, reference_strata=NULL,
+                     age, period, apc_prior="rw1", random=F,
                      control.compute = list(config = TRUE, dic = TRUE, waic = TRUE, cpo = TRUE),
                      binomial.n = NULL, poisson.offset = NULL, verbose=F) {
 
@@ -373,8 +384,18 @@ fit_MAPC <- function(data, response, apc_format, family, strata_col, reference_s
          'install.packages("INLA", repos = c(INLA = "https://inla.r-inla-download.org/R/stable"))')
   }
 
-  if(!is.factor(data[[strata_col]])) {stop("Strata_col needs to be a factor.")}
-  if(!(reference_strata %in% levels(data[[strata_col]]))) {stop("'reference_strata' must be one of the levels of 'strata_col'.")}
+  # Tidy NSE
+  response_q <- enquo(response)
+  response_name <- as_name(response_q)
+  strata_col_q <- enquo(stratify_by)
+  strata_col_name <- as_name(strata_col_q)
+  age_q <- enquo(age)
+  age_name <- as_name(age_q)
+  period_q <- enquo(period)
+  period_name <- as_name(period_q)
+
+  if(!is.factor(data[[strata_col_name]])) {stop("Strata_col needs to be a factor.")}
+  if(!(reference_strata %in% levels(data[[strata_col_name]]))) {stop("'reference_strata' must be one of the levels of 'strata_col'.")}
 
   binomial.n <- enquo(binomial.n)
   poisson.offset <- enquo(poisson.offset)
@@ -386,23 +407,38 @@ fit_MAPC <- function(data, response, apc_format, family, strata_col, reference_s
     message("Family is poisson, but no value for 'poisson.offset' was supplied. Defaults to 1.")
   }
 
-  data.APC <- data %>% as.APC.df(age, period)
+  data.APC <- data %>% as.APC.df(!!sym(age_name), !!sym(period_name))
 
-  data.APC.NA <- data.APC %>% as.APC.NA.df(strata_col,
-                                           age_col="age_index", period_col="period_index", cohort_col="cohort_index",
+  data.APC.NA <- data.APC %>% as.APC.NA.df(stratify_by=!!strata_col_q,
+                                           age="age_index", period="period_index", cohort="cohort_index",
                                            include.random=random)
 
-  inla_formula <- generate_MAPC_formula(data.APC.NA, apc_format, response, stratify_var = strata_col,
+  data.APC.NA[[strata_col_name]] <- as.factor(data.APC.NA[[strata_col_name]])
+
+  subset1 <- data.APC.NA %>% filter(.data[[strata_col_name]] == levels(data.APC.NA[[strata_col_name]])[1])
+  n_age <- length(unique(subset1[["age_index"]]))
+  n_period <- length(unique(subset1[["period_index"]]))
+  n_cohort <- length(unique(subset1[["cohort_index"]]))
+  for (level in levels(data.APC.NA[[strata_col_name]])) {
+    subset_temp <- data.APC.NA %>% filter(.data[[strata_col_name]] == level)
+    n_age_temp <- length(unique(subset_temp[["age_index"]]))
+    n_period_temp <- length(unique(subset_temp[["period_index"]]))
+    n_cohort_temp <- length(unique(subset_temp[["cohort_index"]]))
+    if(n_age != n_age_temp) {stop("There are unobserved age indices in some strata. All indices must be present in all strata. The function plot_missing_data() is useful.")}
+    if(n_period != n_period_temp) {stop("There are unobserved period indices in some strata. All indices must be present in all strata. The function plot_missing_data() is useful.")}
+    if(n_cohort != n_cohort_temp) {stop("There are unobserved cohort indices in some strata. All indices must be present in all strata. The function plot_missing_data() is useful.")}
+  }
+
+  inla_formula <- generate_MAPC_formula(data.APC.NA, apc_format, response=response_name, stratify_var = strata_col_name,
                                         apc_prior=apc_prior, random_term=random,
                                         age="age_index", period="period_index", cohort="cohort_index")
 
   lincombs <- generate_apc_lincombs(apc_format, data.APC.NA,
-                                    strata=strata_col, reference_strata = reference_strata,
+                                    strata=strata_col_name, reference_strata = reference_strata,
                                     age="age_index", period="period_index", cohort="cohort_index")
 
   binomial.vec <- if (!rlang::quo_is_null(binomial.n)) rlang::eval_tidy(binomial.n, data = data.APC.NA) else NULL
   poisson.vec  <- if (!rlang::quo_is_null(poisson.offset)) rlang::eval_tidy(poisson.offset, data = data.APC.NA) else NULL
-
 
   if(family=="binomial" & !is.null(binomial.vec)) {
     fit <- INLA::inla(
@@ -421,6 +457,7 @@ fit_MAPC <- function(data, response, apc_format, family, strata_col, reference_s
       data = data.APC.NA,
       family = family,
       control.compute = control.compute,
+      lincomb = lincombs,
       E = ._offset_temp_,
       verbose = verbose
     )
@@ -437,10 +474,161 @@ fit_MAPC <- function(data, response, apc_format, family, strata_col, reference_s
 
 
   plots <- plot_lincombs(fit, apc_format, data.APC.NA,
-                         strata_col = strata_col, reference_level = reference_strata,
+                         strata_col = strata_col_name, reference_level = reference_strata,
                          family = family,
-                         age="age_index", period="period_index", cohort="cohort_index")
+                         age_ind="age_index", period_ind="period_index", cohort_ind="cohort_index",
+                         age_vals = sort(unique(data.APC.NA[[age_name]])),
+                         period_vals = sort(unique(data.APC.NA[[period_name]])),
+                         cohort_vals = sort(unique(data.APC.NA[[period_name]] - data.APC.NA[[age_name]])))
 
-  return(list(model_fit = fit, plots = plots))
+  result <- list(model_fit = fit, plots = plots, apc_format=apc_format)
+  class(result) <- "mapc"
+  return(result)
 }
 
+
+#################################################################################################
+#' Fit all configurations of MAPC models using INLA
+#'
+#' Fits all configurations of shared vs. stratum-specific time effects:
+#' \describe{
+#'  \item{APc}{Shared age and period effects, stratum-specific cohort effects.}
+#'  \item{ApC}{Shared age and cohort effects, stratum-specific period effects.}
+#'  \item{aPC}{Shared period and cohort effects, stratum-specific age effects.}
+#'  \item{Apc}{Shared age effects, stratum-specific period and cohort effects.}
+#'  \item{aPc}{Shared period effects, stratum-specific age and cohort effects.}
+#'  \item{apC}{Shared cohort effects, stratum-specific age and period effects.}
+#' }
+#' Uses the \code{\link{fit_MAPC}} function.
+#'
+#' @param data              A \code{data.frame} containing the raw age, period, response, and stratification variables.
+#' @param response          A string naming the response (outcome) variable in \code{data}.
+#' @param family            Likelihood family of the response variable
+#' @param stratify_by        The column in \code{data} to use for stratification.
+#' @param reference_strata  Optional; value(s) of \code{strata_col} to set as the reference level(s). Defaults to \code{NULL}.
+#' @param age               The age column in \code{data}.
+#' @param period            The period column in \code{data}.
+#' @param apc_prior         A string specifying the prior for the age, period, and cohort effects (e.g. \code{"rw1"}, \code{"rw2"}). Defaults to \code{"rw1"}.
+#' @param random            Logical; if \code{TRUE}, include an overall random effect in the APC model. Defaults to \code{TRUE}.
+#' @param control.compute   A list of control.compute options passed to \code{INLA} (e.g. \code{config}, \code{dic}, \code{waic}, \code{cpo}). Defaults to \code{list(config=TRUE, dic=TRUE, waic=TRUE, cpo=TRUE)}.
+#' @param binomial.n        For the \code{family=binomial} likelihood. Either an integer giving the number of trials for the binomial response, or the name of the column containing the number of trials for each observation.
+#' @param poisson.offset    For the \code{family=poisson} likelihood. Either an integer giving the denominator for the Poisson count response, or the name of the column containing the denominator for each observation.
+#' @param verbose           This is argument is passed along to the \code{inla()} function that estimates the MAPC model. If \code{verbose=TRUE}, the \code{inla}-program runs in verbose mode, which can provide more informative error messages.
+#'
+#' @return A named list of \code{mapc} objects, one for each configuration of shared vs. stratum-specific time effects: APc, ApC, aPC, Apc, aPc, apC.
+#'
+#' @examples
+#' \dontrun{
+#' fit <- fit_MAPC(
+#'   data               = data,
+#'   response           = deaths,
+#'   strata_col         = region,
+#'   reference_strata   = North,
+#'   age                = age_group,
+#'   period             = year,
+#'   apc_prior          = "rw1",
+#'   random             = TRUE
+#' )
+#' }
+#'
+#' @export
+fit_all_MAPC <- function(data, response, family, stratify_by, reference_strata=NULL,
+                     age="age", period="period", apc_prior="rw1", random=T,
+                     control.compute = list(config = TRUE, dic = TRUE, waic = TRUE, cpo = TRUE),
+                     binomial.n = NULL, poisson.offset = NULL, verbose=F) {
+
+  # Tidy NSE
+  response_q <- enquo(response)
+  response_name <- as_name(response)
+  strata_col_q <- enquo(strata_col)
+  strata_col_name <- as_name(strata_col_q)
+  age_q <- enquo(age)
+  age_name <- as_name(age_q)
+  period_q <- enquo(period)
+  period_name <- as_name(period_q)
+
+  if (!requireNamespace("INLA", quietly = TRUE)) {
+    stop("This function requires the INLA package. Please install it using:\n",
+         'install.packages("INLA", repos = c(INLA = "https://inla.r-inla-download.org/R/stable"))')
+  }
+
+  if(!is.factor(data[[strata_col_name]])) {stop("Strata_col needs to be a factor.")}
+  if(!(reference_strata %in% levels(data[[strata_col_name]]))) {stop("'reference_strata' must be one of the levels of 'strata_col'.")}
+
+  binomial.n <- enquo(binomial.n)
+  poisson.offset <- enquo(poisson.offset)
+  binomial.vec <- if (!quo_is_null(binomial.n)) eval_tidy(binomial.n, data = data.APC.NA) else NULL
+  poisson.vec  <- if (!quo_is_null(poisson.offset)) eval_tidy(poisson.offset, data = data.APC.NA) else NULL
+
+  if (family == "binomial" && quo_is_null(binomial.n)) {
+    message("Family is binomial, but no value for 'binomial.n' was supplied. Defaults to rep(1, n.data).\nProvide the number of trials if this is wrong.")
+  }
+  if (family == "poisson" && quo_is_null(poisson.offset)) {
+    message("Family is Poisson, but no value for 'poisson.offset' was supplied. Defaults to rep(1, n.data).")
+  }
+
+  data.APC <- data %>% as.APC.df(!!sym(age_name), !!sym(period_name))
+
+  data.APC.NA <- data.APC %>% as.APC.NA.df(stratify_by=!!strata_col_q,
+                                           age="age_index", period="period_index", cohort="cohort_index",
+                                           include.random=random)
+
+
+  results <- list()
+  for (apc_format in c("APc", "ApC", "aPC", "Apc", "aPc", "apC")) {
+
+    inla_formula <- generate_MAPC_formula(data.APC.NA, apc_format, response=response_name, stratify_var = strata_col_name,
+                                          apc_prior=apc_prior, random_term=random,
+                                          age="age_index", period="period_index", cohort="cohort_index")
+
+    lincombs <- generate_apc_lincombs(apc_format, data.APC.NA,
+                                      strata=strata_col_name, reference_strata = reference_strata,
+                                      age="age_index", period="period_index", cohort="cohort_index")
+
+
+    if(family=="binomial" & !is.null(binomial.vec)) {
+      fit <- INLA::inla(
+        formula = inla_formula,
+        data = data.APC.NA,
+        family = family,
+        control.compute = control.compute,
+        lincomb = lincombs,
+        Ntrials = binomial.vec,
+        verbose = verbose
+      )
+    } else if(family=="poisson" & !is.null(poisson.vec)) {
+      data.APC.NA$._offset_temp_ <- poisson.vec
+      fit <- INLA::inla(
+        formula = inla_formula,
+        data = data.APC.NA,
+        family = family,
+        control.compute = control.compute,
+        E = ._offset_temp_,
+        verbose = verbose
+      )
+    } else {
+      fit <- INLA::inla(
+        formula = inla_formula,
+        data = data.APC.NA,
+        family = family,
+        control.compute = control.compute,
+        lincomb = lincombs,
+        verbose = verbose
+      )
+    }
+
+    plots <- plot_lincombs(fit, apc_format, data.APC.NA,
+                           strata_col = strata_col_name, reference_level = reference_strata,
+                           family = family,
+                           age_ind="age_index", period_ind="period_index", cohort_ind="cohort_index")
+
+    result <- list(model_fit = fit, plots = plots, apc_format=apc_format)
+    class(result) <- "mapc"
+
+    results[[apc_format]] <- result
+  }
+
+  class(results) <- "all_mapc"
+
+  return(results)
+}

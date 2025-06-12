@@ -4,18 +4,16 @@
 \alias{gaussian_aggregator}
 \title{Aggregate Gaussian data}
 \usage{
-gaussian_aggregator(df, col_name, precision.scale = NULL)
+gaussian_aggregator(y, precision.scale = NULL)
 }
 \arguments{
-\item{df}{Data frame with a Gaussian column.}
-
-\item{col_name}{Name of the Gaussian column.}
+\item{y}{Gaussian column.}
 
 \item{precision.scale}{Scales for the precision of each Gaussian observation. \cr
 \strong{Defaults to vector of 1s (no scaling).}}
 }
 \value{
-Aggregated Gaussian column as an \code{inla.mdata} object.
+Aggregated Gaussian column as an \code{\link[INLA]{inla.mdata}} object.
 }
 \description{
 Aggregates numerical data frame column using sufficient statistics for Gaussian samples, into an \code{inla.mdata} object compatible with the\code{agaussian} likelihood in \code{INLA}.

@@ -13,16 +13,16 @@ agaussian(data, precision.scale = NULL)
 \strong{Defaults to vector of 1s (no scaling).}}
 }
 \value{
-Aggregated Gaussian data.
+Aggregated Gaussian data, in an \code{\link[INLA]{inla.mdata}} object, which is compatible with the \code{agaussian} family in \pkg{INLA}.
 }
 \description{
 Aggregates Gaussian data using sufficient statistics for Gaussian samples.
-For a sample \eqn{\boldsymbol{y} = \{y_1, \dots, y_n\}} with \eqn{y_i \sim \mathcal{N(\mu, (s_i \tau)^{-1})}}, the sample is aggregated into the sufficient statistic \cr \cr
+For a sample \eqn{\boldsymbol{y} = \{y_1, \dots, y_n\}} with \eqn{y_i \sim \mathcal{N(\mu, (s_i \tau)^{-1})}}, \eqn{i=1, \dots, n}, the sample is aggregated into the sufficient statistic \cr \cr
 \eqn{(v, \frac{1}{2} \sum_{i=1}^n \log(s_i), m, n, \bar{y})}, \cr \cr
 with \cr \cr
 \eqn{m = \sum_{i=1}^n s_i} \eqn{\quad}
 \eqn{\bar{y} = \frac{1}{m} \sum{i=1}^n s_iy_i} \eqn{\quad}
 \eqn{v = \frac{1}{m} \sum_{i=1}^n s_i y_i^2 - \bar{y}^2}. \cr \cr
-For a short derivation of the sufficient statistic, attach the \code{R-INLA} package (\code{library(INLA)}) and run \code{inla.doc("agaussian")}.
+For a short derivation of the sufficient statistic, attach the \pkg{INLA} package (\code{library(INLA)}) and run \code{inla.doc("agaussian")}.
 }
 \keyword{internal}

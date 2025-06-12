@@ -4,45 +4,35 @@
 \alias{as.APC.NA.df}
 \title{Create NA structure across age, period and cohort groups based on strata}
 \usage{
-as.APC.NA.df(
-  df,
-  stratify_var,
-  age_col = "age",
-  period_col = "period",
-  cohort_col = "cohort",
-  include.random = FALSE
-)
+as.APC.NA.df(data, stratify_by, age, period, cohort, include.random = FALSE)
 }
 \arguments{
-\item{df}{Data frame with age, period, cohort, and stratification columns.}
+\item{data}{Data frame with age, period, cohort, and stratification columns.}
 
-\item{stratify_var}{Name of the stratification variable column. This column
+\item{stratify_by}{Stratification variable column. This column
 will be used to create the stratum-specific NA structure. It should ideally
-be a factor or character vector. \strong{This argument is required.}}
+be a factor or character vector.}
 
-\item{age_col}{Name of the age column (must be numeric/integer).
-\strong{Defaults to "age".}}
+\item{age}{Age column in \code{data} (must be a numeric/integer column).}
 
-\item{period_col}{Name of the period column (must be numeric/integer).
-\strong{Defaults to "period".}}
+\item{period}{Name of the period column (must be a numeric/integer column).}
 
-\item{cohort_col}{Name of the cohort column (must be numeric/integer).
-\strong{Defaults to "cohort".}}
+\item{cohort}{Name of the cohort column (must be a numeric/integer column).}
 
 \item{include.random}{Logical. Whether to include a unique index ('random')
 for each combination of age, period, and stratum, potentially for use as
 random effect identifiers in models. \strong{Defaults to FALSE.}}
 }
 \value{
-A data frame containing the original \code{age_col}, \code{period_col},
-\code{cohort_col}, and \code{stratify_var} columns, plus:
+A data frame containing the original \code{age}, \code{period},
+\code{cohort}, and \code{stratify_by} columns, plus:
 \itemize{
-\item Dummy indicator columns for each level of \code{stratify_var} (e.g., \code{Region_North}, \code{Region_South}).
+\item Dummy indicator columns for each level of \code{stratify_by} (e.g., \code{Region_North}, \code{Region_South} if \code{Region} was a stratifying variable).
 \item Stratum-specific age, period, and cohort columns (e.g., \code{age_Region_North},
 \code{period_Region_North}, \code{cohort_Region_North}), containing the respective
 value if the row belongs to that stratum, and \code{NA} otherwise.
-\item If \code{include.random = TRUE}, a 'random' column with unique integer indices.
-The rows are ordered primarily by the stratification variable levels.
+\item If \code{include.random = TRUE}, a column named \code{random} with unique integer indices.
+The rows are ordered primarily by the stratification variable levels. This is useful for defining random components in MAPC models.
 }
 }
 \description{

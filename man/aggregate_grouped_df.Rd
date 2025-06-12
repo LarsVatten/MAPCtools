@@ -5,45 +5,31 @@
 \title{Aggregate grouped data using aggregate_df}
 \usage{
 aggregate_grouped_df(
-  grouped_df,
+  data,
+  by,
   gaussian = NULL,
   gaussian.precision.scales = NULL,
-  binomial = NULL,
-  multinomial = NULL,
-  multinomial.categories = NULL
+  binomial = NULL
 )
 }
 \arguments{
-\item{grouped_df}{Grouped data frame, created using dplyr grouping methods.}
+\item{data}{Data frame to be grouped and aggregated.}
 
-\item{gaussian}{Vector of names for the Gaussian columns to be aggregated. \cr
-Passed directly to \code{aggregate_df} for each group. \cr
-\strong{Defaults to NULL (optional).}}
+\item{by}{Columns in \code{data} for which to group data by.}
+
+\item{gaussian}{Gaussian columns in \code{grouped_data} to be aggregated. \cr
+\strong{Defaults to \code{NULL} (optional).}}
 
 \item{gaussian.precision.scales}{Scales for the precision of Gaussian observations. \cr
-Passed directly to \code{aggregate_df} for each group. The validation within
-\code{aggregate_df} will apply to the subset of data \emph{within each group}.
-See \code{\link{aggregate_df}} documentation for format details.
+See \code{\link{aggregate_df}} documentation for format details, and \code{\link[INLA]{agaussian}} for a more theoretical walkthrough.
 \strong{Defaults to NULL.}}
 
-\item{binomial}{Vector of names for the binomial columns to be aggregated. \cr
-Passed directly to \code{aggregate_df} for each group. \cr
-\strong{Defaults to NULL (optional).}}
-
-\item{multinomial}{Vector of names for the multinomial columns to be aggregated. \cr
-Passed directly to \code{aggregate_df} for each group. \cr
-\strong{Defaults to NULL (optional).}}
-
-\item{multinomial.categories}{A named list where names correspond to columns in \code{multinomial},
-and each element is a character vector of all possible categories for that multinomial variable.
-If \code{NULL} for a given column, categories are inferred \emph{across the entire input \code{grouped_data}}
-before aggregation to ensure consistency across groups. This inferred list is then
-passed to \code{aggregate_df} for each group. \cr
-\strong{Defaults to NULL (infer all categories from data).}}
+\item{binomial}{Binomial columns in \code{grouped_data} to be aggregated. \cr
+\strong{Defaults to \code{NULL} (optional).}}
 }
 \value{
 Aggregated data frame (tibble), with one row per group, containing
-grouping variables, count 'n' per group, and aggregated list-columns for
+grouping variables, count \code{n} per group, and aggregated list-columns for
 specified variables as returned by \code{\link{aggregate_df}}.
 }
 \description{

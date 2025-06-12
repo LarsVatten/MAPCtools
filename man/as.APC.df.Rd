@@ -4,29 +4,20 @@
 \alias{as.APC.df}
 \title{Add 1-indexed APC columns to data frame, handling numeric or categorical age/period}
 \usage{
-as.APC.df(
-  df,
-  age = NULL,
-  period = NULL,
-  age_order = NULL,
-  period_order = NULL,
-  M = 1
-)
+as.APC.df(data, age, period, age_order = NULL, period_order = NULL, M = 1)
 }
 \arguments{
-\item{df}{A data.frame}
+\item{data}{Data frame with age and period columns.}
 
-\item{age}{Name of the age column (string).
-Defaults to "age" if both \code{age} and \code{period} are NULL.}
+\item{age}{Age column in \code{data}.}
 
-\item{period}{Name of the period column (string).
-Defaults to "period" if both \code{age} and \code{period} are NULL.}
+\item{period}{Period column in \code{data}.}
 
 \item{age_order}{(Optional) Character vector giving the desired order of age levels.
-If NULL and age is factor/character, uses \code{unique(sort(df[[age]]))}.}
+If NULL and the \code{age} column is factor/character, uses \code{unique(sort(data[[age]]))}.}
 
 \item{period_order}{(Optional) Vector (numeric or character) giving the desired order of periods.
-If NULL and period is factor/character, uses \code{unique(sort(df[[period]]))}.}
+If NULL and \code{period} column is a factor/character, uses \code{unique(sort(data[[period]]))}.}
 
 \item{M}{Grid factor = (width of age intervals)/(width of period intervals).
 Defaults to 1 (i.e. assuming equal sized age and period increments).}

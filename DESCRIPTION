@@ -2,7 +2,7 @@ Package: MAPCtools
 Title: MAPCtools
 Version: 0.0.0.9000
 Authors@R: 
-    person(given = "Lars", family = "Vatten", "lavatt99@gmail.com", role = c("aut", "cre"))
+    person(given = "Lars", family = "Vatten", email= "lavatt99@gmail.com", role = c("aut", "cre"))
 Description: Provides methods for analyzing health data using Bayesian multivariate age-period-cohort (MAPC) models.
 License: MIT + file LICENSE
 Encoding: UTF-8
@@ -15,7 +15,9 @@ Imports:
     stringr,
     rlang,
     ggplot2,
-    viridis
+    viridis,
+    scales,
+    purrr
 URL: https://github.com/LarsVatten/MAPCtools
 BugReports: https://github.com/LarsVatten/MAPCtools/issues
 Suggests: 

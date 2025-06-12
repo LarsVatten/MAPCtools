@@ -4,16 +4,16 @@
 \alias{add_cohort_index}
 \title{Add cohort column to data frame}
 \usage{
-add_cohort_index(df, age_index = NULL, period_index = NULL)
+add_cohort_index(data, age_index, period_index, cohort_name = "cohort_index")
 }
 \arguments{
-\item{df}{Data frame with age and period column.}
+\item{data}{Data frame with age and period columns.}
 
-\item{age_index}{Name of age column in data frame. \cr
-\strong{Defaults to \code{"age_index"} if not specified.}}
+\item{age_index}{Age index column in \code{data}.}
 
-\item{period_index}{Name of period column in data frame. \cr
-\strong{Defaults to \code{"period_index"} if not specified.}}
+\item{period_index}{Period index column in \code{data}.}
+
+\item{cohort_name}{Name of the cohort index column to be created. Defaults to \code{"cohort_index"}.}
 }
 \value{
 Data frame with additional column for cohort indices.

@@ -21,9 +21,9 @@ NULL
 #' @param family Optional character; if \code{NULL}, \code{y_lab} defaults to
 #'   \code{"Mean differences"}.  If \code{"gaussian"}, same; if \code{"poisson"},
 #'   \code{"Log mean ratio"}; if \code{"binomial"}, \code{"Log odds ratio"}.
-#' @param age Character name of the age variable in \code{data} (default \code{"age"}).
-#' @param period Character name of the period variable in \code{data} (default \code{"period"}).
-#' @param cohort Character name of the cohort variable in \code{data} (default \code{"cohort"}).
+#' @param age_ind Character name of the age variable in \code{data} (default \code{"age"}).
+#' @param period_ind Character name of the period variable in \code{data} (default \code{"period"}).
+#' @param cohort_ind Character name of the cohort variable in \code{data} (default \code{"cohort"}).
 #' @param age_title Optional plot title for the age effect.
 #' @param period_title Optional plot title for the period effect.
 #' @param cohort_title Optional plot title for the cohort effect.
@@ -74,7 +74,7 @@ NULL
 #'
 #' @export
 
-plot_lincombs <- function(inla_fit, apc_model, data, strata_col, reference_level, family=NULL, age="age", period="period", cohort="cohort",
+plot_lincombs <- function(inla_fit, apc_model, data, strata_col, reference_level, family=NULL, age_ind="age", period_ind="period", cohort_ind="cohort",
                           age_title=NULL, period_title=NULL, cohort_title=NULL, y_lab=NULL,
                           age_vals = NULL, period_vals = NULL, cohort_vals = NULL,
                           age_breaks=NULL, age_limits=NULL, period_breaks=NULL, period_limits=NULL, cohort_breaks=NULL, cohort_limits=NULL,
@@ -112,9 +112,9 @@ plot_lincombs <- function(inla_fit, apc_model, data, strata_col, reference_level
 
   apc_format <- str_split(apc_model, "")[[1]]
 
-  age_ids <- min(data[[age]]):max(data[[age]])
-  period_ids <- min(data[[period]]):max(data[[period]])
-  cohort_ids <- min(data[[cohort]]):max(data[[cohort]])
+  age_ids <- min(data[[age_ind]]):max(data[[age_ind]])
+  period_ids <- min(data[[period_ind]]):max(data[[period_ind]])
+  cohort_ids <- min(data[[cohort_ind]]):max(data[[cohort_ind]])
 
 
   # Strata
@@ -151,17 +151,20 @@ plot_lincombs <- function(inla_fit, apc_model, data, strata_col, reference_level
 
 
   if ("a" %in% apc_format) {
-    age_differences <- differences_summary[age_inds, ]
+    age_differences <- differences_summary[grepl("^Age = ", rownames(differences_summary)), ]
+
     age_labels <- rownames(age_differences)
 
     # Extract the numeric part of the age (after "Age : ")
-    age_order <- as.numeric(stringr::str_extract(age_labels, "(?<=Age = )\\d+(?=\\sStrata)"))
+    age_order <- as.numeric(str_extract(age_labels, "(?<=Age = )\\d+(?=\\sStrata)"))
 
     # Reorder the dataframe based on the extracted numeric age
     ordered_age_differences <- age_differences[order(age_order), ]
 
     # Extract labels for differences
-    age_labels <- stringr::str_extract(rownames(ordered_age_differences), "(?<=Strata = )\\w+")
+    age_labels <- str_extract(rownames(ordered_age_differences), "(?<=Strata = )\\w+")
+
+    print(tail(ordered_age_differences))
 
     age_data <- data.frame(
       median_differences = ordered_age_differences$`0.5quant`,
@@ -173,25 +176,24 @@ plot_lincombs <- function(inla_fit, apc_model, data, strata_col, reference_level
     if(!is.null(age_vals)) {
       age_data$x <- rep(age_vals, each=n_strata_diff)
     } else {age_data$x = rep(age_ids, each=n_strata_diff)}
-    print("Age vals: ")
-    print(age_data$x)
+
     p_age <- plot_time_effect(age_data, x_lab="Age", y_lab=y_lab, family=family, color_palette = color.palette, plot_theme = gg_theme, legend_title = legend_title)
 
     plot_list <- c(plot_list, list("age" = p_age))
   }
 
   if ("p" %in% apc_format) {
-    period_differences <- differences_summary[period_inds, ]
+    period_differences <- differences_summary[grepl("^Period = ", rownames(differences_summary)), ]
     period_labels <- rownames(period_differences)
 
     # Extract the numeric part of the period (after "period : ")
-    period_order <- as.numeric(stringr::str_extract(period_labels, "(?<=Period = )\\d+(?=\\sStrata)"))
+    period_order <- as.numeric(str_extract(period_labels, "(?<=Period = )\\d+(?=\\sStrata)"))
 
     # Reorder the dataframe based on the extracted numeric period
     ordered_period_differences <- period_differences[order(period_order), ]
 
     # Extract labels for differences
-    period_labels <- stringr::str_extract(rownames(ordered_period_differences), "(?<=Strata = )\\w+")
+    period_labels <- str_extract(rownames(ordered_period_differences), "(?<=Strata = )\\w+")
 
     period_data <- data.frame(
       median_differences = ordered_period_differences$`0.5quant`,
@@ -211,20 +213,17 @@ plot_lincombs <- function(inla_fit, apc_model, data, strata_col, reference_level
   }
 
   if ("c" %in% apc_format) {
-    cohort_differences <- differences_summary[cohort_inds, ]
+    cohort_differences <- differences_summary[grepl("^Cohort = ", rownames(differences_summary)), ]
     cohort_labels <- rownames(cohort_differences)
 
-    # Extract the numeric part of the cohort (after "cohort : ")
-    cohort_order <- as.numeric(stringr::str_extract(cohort_labels, "(?<=Cohort = )\\d+"))
-
     # Reorder the dataframe based on the extracted numeric cohort
-    cohort_order <- as.numeric(stringr::str_extract(cohort_labels, "(?<=Cohort = )\\d+(?=\\sStrata)"))
+    cohort_order <- as.numeric(str_extract(cohort_labels, "(?<=Cohort = )\\d+(?=\\sStrata)"))
 
     # Reorder the dataframe based on the extracted numeric period
     ordered_cohort_differences <- cohort_differences[order(cohort_order), ]
 
     # Extract labels for differences
-    cohort_labels <- stringr::str_extract(rownames(ordered_cohort_differences), "(?<=Strata = )\\w+")
+    cohort_labels <- str_extract(rownames(ordered_cohort_differences), "(?<=Strata = )\\w+")
 
     cohort_data <- data.frame(
       median_differences = ordered_cohort_differences$`0.5quant`,
@@ -232,6 +231,7 @@ plot_lincombs <- function(inla_fit, apc_model, data, strata_col, reference_level
       hpd_upper = ordered_cohort_differences$`0.975quant`,
       Strata = factor(cohort_labels, levels = diff_strata)
     )
+
 
     if(!is.null(cohort_vals)) {
       cohort_data$x = rep(cohort_vals, each=n_strata_diff)

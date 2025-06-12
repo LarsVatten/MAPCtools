@@ -4,20 +4,20 @@
 \alias{add_APC_by_match}
 \title{Add 1-indexed age, period and cohort indices via match()}
 \usage{
-add_APC_by_match(df, age_col, period_col, age_order, period_order, M = 1)
+add_APC_by_match(df, age_name, period_name, age_order, period_order, M = 1)
 }
 \arguments{
 \item{df}{Data frame}
 
-\item{age_col}{Name of the age (or age-group) column (string)}
+\item{age_name}{Name of the age (or age-group) column (string).}
 
-\item{period_col}{Name of the period (e.g. year) column (string)}
+\item{period_name}{Name of the period (e.g. year) column (string).}
 
-\item{age_order}{Character vector giving the \emph{desired} ordering of age levels}
+\item{age_order}{Character vector giving the desired ordering of age levels}
 
-\item{period_order}{Vector (numeric or character) giving the \emph{desired} ordering of periods}
+\item{period_order}{Vector (numeric or character) giving the desired ordering of periods}
 
-\item{M}{Grid factor = (width of age intervals)/(width of period intervals)}
+\item{M}{Grid factor, given by \eqn{M = \frac{\text{width of age intervals}{width of period intervals}}}}
 }
 \value{
 \if{html}{\out{<div class="sourceCode">}}\preformatted{         Data frame with new columns: age_index, period_index, cohort_index

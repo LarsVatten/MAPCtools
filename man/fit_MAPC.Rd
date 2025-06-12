@@ -9,12 +9,12 @@ fit_MAPC(
   response,
   apc_format,
   family,
-  strata_col,
+  stratify_by,
   reference_strata = NULL,
-  age = "age",
-  period = "period",
+  age,
+  period,
   apc_prior = "rw1",
-  random = T,
+  random = F,
   control.compute = list(config = TRUE, dic = TRUE, waic = TRUE, cpo = TRUE),
   binomial.n = NULL,
   poisson.offset = NULL,
@@ -26,13 +26,23 @@ fit_MAPC(
 
 \item{response}{A string naming the response (outcome) variable in \code{data}.}
 
-\item{apc_format}{A specification of the APC structure (e.g. "APC", "AC", "AP", etc.), passed to the formula generator.}
+\item{apc_format}{A specification of the APC structure, with options:
+\describe{
+\item{APc}{Shared age and period effects, stratum-specific cohort effects.}
+\item{ApC}{Shared age and cohort effects, stratum-specific period effects.}
+\item{aPC}{Shared period and cohort effects, stratum-specific age effects.}
+\item{Apc}{Shared age effects, stratum-specific period and cohort effects.}
+\item{aPc}{Shared period effects, stratum-specific age and cohort effects.}
+\item{apC}{Shared cohort effects, stratum-specific age and period effects.}
+}
+Note: It is also possible to specify models with only one or two time effects, by omitting the letters corresponding to the time effects to be omitted.}
 
-\item{family}{Likelihood family of the response variable}
+\item{family}{A string indicating the likelihood family. The default is \code{"gaussian"} with identity link.
+See \code{names(inla.models()$likelihood)} for a list of possible alternatives and use \code{inla.doc()} for detailed docs for individual families.}
 
-\item{strata_col}{A string naming the column in \code{data} to use for stratification (e.g. region or sex).}
+\item{stratify_by}{A string naming the column in \code{data} to use for stratification (e.g. region or sex).}
 
-\item{reference_strata}{Optional; value(s) of \code{strata_col} to set as the reference level(s). Defaults to \code{NULL}.}
+\item{reference_strata}{Optional; value of \code{strata_col} to set as the reference level. Defaults to \code{NULL}.}
 
 \item{age}{Name of the age variable in \code{data}. Defaults to \code{"age"}.}
 
@@ -40,9 +50,9 @@ fit_MAPC(
 
 \item{apc_prior}{A string specifying the prior for the age, period, and cohort effects (e.g. \code{"rw1"}, \code{"rw2"}). Defaults to \code{"rw1"}.}
 
-\item{random}{Logical; if \code{TRUE}, include an overall random effect in the APC model. Defaults to \code{TRUE}.}
+\item{random}{Logical; if \code{TRUE}, include an overall random effect in the APC model, to capture unobserved heterogeneity. Defaults to \code{FALSE}.}
 
-\item{control.compute}{A list of control.compute options passed to \code{INLA} (e.g. \code{config}, \code{dic}, \code{waic}, \code{cpo}). Defaults to \code{list(config=TRUE, dic=TRUE, waic=TRUE, cpo=TRUE)}.}
+\item{control.compute}{A list of control variables passed to \code{INLA}, that specifies what to be computed during model fitting. See \code{\link[INLA]{control.compute}} for options. Defaults to \code{list(config=TRUE, dic=TRUE, waic=TRUE, cpo=TRUE)}.}
 
 \item{binomial.n}{For the \code{family=binomial} likelihood. Either an integer giving the number of trials for the binomial response, or the name of the column containing the number of trials for each observation.}
 
@@ -66,12 +76,12 @@ and then fits the specified MAPC model via \code{INLA}.
 \dontrun{
 fit <- fit_MAPC(
   data               = mydata,
-  response           = "deaths",
-  apc_format         = "APC",
-  strata_col         = "region",
-  reference_strata   = "North",
-  age                = "age_group",
-  period             = "year",
+  response           = deaths,
+  apc_format         = Apc,
+  strata_col         = region,
+  reference_strata   = North,
+  age                = age_group,
+  period             = year,
   apc_prior          = "rw1",
   random             = TRUE
 )

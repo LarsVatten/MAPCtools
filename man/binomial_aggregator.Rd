@@ -4,10 +4,10 @@
 \alias{binomial_aggregator}
 \title{Aggregate binomial data}
 \usage{
-binomial_aggregator(df, col_name)
+binomial_aggregator(data, col_name)
 }
 \arguments{
-\item{df}{Data frame with binomial data column.}
+\item{data}{Data frame with binomial data column.}
 
 \item{col_name}{Binomial data column.}
 }

@@ -28,22 +28,22 @@ abinomial <- function(data) {
 #'
 #' Aggregates binomial data into sufficient statistics for binomial samples. Uses \code{\link{abinomial}}.
 #'
-#' @param df Data frame with binomial data column.
+#' @param data Data frame with binomial data column.
 #' @param col_name Binomial data column.
 #' @return Aggregated binomial data column.
 #' @keywords internal
 
 # Function to extract and rename the sufficient statistics from the abinomial function
-binomial_aggregator <- function(df, col_name) {
-  if (!is.data.frame(df)) {
-    stop("'df' must be a data frame.")
+binomial_aggregator <- function(data, col_name) {
+  if (!is.data.frame(data)) {
+    stop("'data' must be a data frame.")
   }
   if (!is.character(col_name) || length(col_name) != 1) {
     stop("'col_name' must be a character string, naming a column in the data frame.")
   }
-  if (!(col_name %in% names(df))) {
+  if (!(col_name %in% names(data))) {
     stop(paste0("Column '", col_name, "' not found in the data frame."))
   }
-  stats <- abinomial(df[[col_name]])
+  stats <- abinomial(data[[col_name]])
   return(stats)
 }

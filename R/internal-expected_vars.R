@@ -3,22 +3,22 @@
 #' Given a data frame and a set of discrete (or factor) variables,
 #' returns all combinations of their observed levels **and** the list of levels.
 #'
-#' @param df A data frame whose columns you want to examine.
-#' @param vars Character vector of column names in `df` to use.
+#' @param data A data frame whose columns you want to examine.
+#' @param vars Character vector of column names in \code{data} to use.
 #'
 #' @return A named list with two elements:
 #' \describe{
 #'   \item{grid}{A data.frame where each row is one combination of the variable levels
-#'               (equivalent to what \code{expand.grid()} would produce).}
-#'   \item{levels}{A named list; for each variable in `vars` it gives the sorted
-#'                 unique values (or factor levels) observed in `df`.}
+#'               (equivalent to what \code{\link{expand.grid}} would produce).}
+#'   \item{levels}{A named list; for each variable in \code{vars} it gives the sorted
+#'                 unique values (or factor levels) observed in \code{data}.}
 #' }
 #'
 #' @keywords internal
 
-expected_groups <- function(df, vars) {
+expected_groups <- function(data, vars) {
   levels_list <- lapply(vars, function(col) {
-    col_data <- df[[col]]
+    col_data <- data[[col]]
     if (is.factor(col_data)) levels(col_data) else sort(unique(col_data))
   })
   names(levels_list) <- vars

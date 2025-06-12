@@ -11,9 +11,9 @@ plot_lincombs(
   strata_col,
   reference_level,
   family = NULL,
-  age = "age",
-  period = "period",
-  cohort = "cohort",
+  age_ind = "age",
+  period_ind = "period",
+  cohort_ind = "cohort",
   age_title = NULL,
   period_title = NULL,
   cohort_title = NULL,
@@ -49,11 +49,11 @@ for age, period, cohort, and the strata variable.}
 \code{"Mean differences"}.  If \code{"gaussian"}, same; if \code{"poisson"},
 \code{"Log mean ratio"}; if \code{"binomial"}, \code{"Log odds ratio"}.}
 
-\item{age}{Character name of the age variable in \code{data} (default \code{"age"}).}
+\item{age_ind}{Character name of the age variable in \code{data} (default \code{"age"}).}
 
-\item{period}{Character name of the period variable in \code{data} (default \code{"period"}).}
+\item{period_ind}{Character name of the period variable in \code{data} (default \code{"period"}).}
 
-\item{cohort}{Character name of the cohort variable in \code{data} (default \code{"cohort"}).}
+\item{cohort_ind}{Character name of the cohort variable in \code{data} (default \code{"cohort"}).}
 
 \item{age_title}{Optional plot title for the age effect.}
 

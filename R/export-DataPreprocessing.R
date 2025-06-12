@@ -22,238 +22,9 @@
 #' @importFrom stats setNames
 NULL
 ##############################################################################
+### Suppress note due to tidy NSE
 
-#' @title Group data frame
-#'
-#' @description Groups data into groups specified by variables \code{group_by} and/or \code{stratify_by}.
-#' Grouping is performed using using \code{dplyr}'s \link[dplyr:group_by]{group_by()} method, so that group manipulation method's from \code{dplyr} can be used on the resulting data frame.  \cr
-#' At least one of \code{group_by} and \code{stratify_by} must be supplied by the user.
-#'
-#' @param df A data frame with grouping and/or stratification variables.
-#' @param group_by Variables in data frame used to group the data. \cr
-#'      **Defaults to empty list (optional).**
-#' @param stratify_by Variables in data frame used to stratify the data. \cr
-#'      **Defaults to empty list (optional).**
-#' @return Grouped data frame.
-#' @export
-
-group_df <- function(df, group_by=c(), stratify_by=c()) {
-
-  # Check if both are empty vectors
-  if (length(group_by) == 0 && length(stratify_by) == 0) {
-    stop("You must supply at least one of `group_by` or `stratify_by`.")
-  }
-
-  # Ensure stratify_by is a character vector (list of columns)
-  for (stratum in stratify_by) {
-    if (!is.character(stratum)) stop("stratify_by must be a character vector of column names.")
-  }
-  for (group in group_by) {
-    if (!is.character(group)) stop("group_by must be a character vector of column names.")
-  }
-  # Ensure the specified columns exist in the data frame
-  missing_cols <- setdiff(c(group_by, stratify_by), names(df))
-  if (length(missing_cols) > 0) {
-    stop("The following columns are missing in the data frame: ", paste(missing_cols, collapse = ", "))
-  }
-
-  if (length(group_by)!=0 && length(stratify_by)!=0) {
-    # Convert all stratification variables to factors
-    df <- df %>%
-      mutate(across(all_of(stratify_by), as.factor))
-
-    # Define indicator column name
-    indicator_col <- "Stratum"
-
-    # Create a single indicator variable for all stratification variables
-    df <- df %>%
-      mutate(`Stratum` = as.integer(as.factor(interaction(!!!syms(stratify_by), sep = "_"))))
-
-    # Create the correspondence table (mapping between stratification variables and factor levels)
-    correspondence_table <- df %>%
-      select(all_of(stratify_by), `Stratum`) %>%
-      distinct() %>%
-      arrange(`Stratum`)  # Ensure ordered factor levels
-
-    correspondence_table <- as.data.frame(correspondence_table)
-
-    # Group the data by all specified grouping variables and the stratify indicator
-    df_grouped <- df %>%
-      group_by(!!!syms(group_by), .data[[indicator_col]]) %>%
-      select(!!!syms(c(group_by, stratify_by, "Stratum")), everything())
-
-    n_groups <- number_of_groups(df, group_by)
-    n_strata <- number_of_strata(df, stratify_by)
-
-    # Display correspondence table
-    message("Strata are given the following factor levels:\n",
-            paste(capture.output(print(correspondence_table, row.names = FALSE)), collapse = "\n"))
-    message("Grouped data frame into ", n_strata, " strata, with ", n_groups, " groups per strata. (Total: ", n_groups*n_strata, " distinct groups.)")
-
-    message("NB! The stratum indicator column is named 'Stratum'. Rename as you like.")
-    return(df_grouped)
-  } else if(length(group_by)!=0) {
-    print("group")
-    # Group the data by all specified grouping variables and the stratify indicator
-    df_grouped <- df %>% group_by(!!!syms(group_by)) %>%
-      select(!!!syms(c(group_by)), everything())
-
-    message("Grouped data frame into ", number_of_groups(df, group_by), " groups.")
-
-    return(df_grouped)
-  } else if(length(stratify_by)!=0) {
-    # Convert all stratification variables to factors
-    df <- df %>%
-      mutate(across(all_of(stratify_by), as.factor))
-
-    # Define indicator column name
-    indicator_col <- "Stratum"
-
-    # Create a single indicator variable for all stratification variables
-    df <- df %>%
-      mutate(`Stratum` = as.integer(as.factor(interaction(!!!syms(stratify_by), sep = "_"))))
-
-    # Create the correspondence table (mapping between stratification variables and factor levels)
-    correspondence_table <- df %>%
-      select(all_of(stratify_by), `Stratum`) %>%
-      distinct() %>%
-      arrange(`Stratum`)  # Ensure ordered factor levels
-
-    correspondence_table <- as.data.frame(correspondence_table)
-
-    # Group the data by all specified grouping variables and the stratify indicator
-    df_grouped <- df %>%
-      group_by(.data[[indicator_col]]) %>%
-      select(!!!syms(c(stratify_by, "Stratum")), everything())
-
-    # Display correspondence table
-    message("Strata are given the following factor levels:\n",
-            paste(capture.output(print(correspondence_table, row.names = FALSE)), collapse = "\n"))
-    message("Data frame stratified into ", number_of_strata(df, stratify_by), " strata.")
-
-    message("NB! The stratum indicator column is named 'Stratum'. Rename as you like.")
-    return(df_grouped)
-  } else {
-    warning("No grouping or stratification variables was provided. Data frame unchanged.")
-    return(df)}
-}
-
-
-##############################################################################
-### Group age-period data
-
-#' Group age-period-cohort data
-#'
-#' Groups a data frame with an age column and a period column into groups of age and period. Optionally, additional stratification can be performed.
-#'
-#' @param df A data frame with age and period columns.
-#' @param age Name of age column in data frame. \cr
-#'      **Defaults to \code{"age"} if not specified.**
-#' @param period Name of period column in data frame. \cr
-#'      **Defaults to \code{"period"} if not specified.**
-#' @param stratify_by Additional stratification variables. \cr
-#'      **Defaults to NULL (optional).**
-#'
-#'
-#' @return Data frame grouped by age and period, and additional factor levels for each strata.
-#' @export
-
-group_APC_df <- function(df, age=NULL, period=NULL, stratify_by=NULL) {
-
-  # Check that age and period are character strings (if provided)
-  if (!is.null(age) && !is.character(age)) {
-    stop("`age` must be a string, the name of the age column.")
-  }
-  if (!is.null(period) && !is.character(period)) {
-    stop("`period` must be a string, the name of the period column.")
-  }
-
-  if (is.null(age) && is.null(period)) {
-    # First check if columns named "age" and "period" actually exist
-    if (!all(c("age", "period") %in% names(df))) {
-      stop("No columns named 'age' and/or 'period' were found in the data frame. Please provide the column names explicitly.")
-    } else {
-      # Then fall back and notify the user
-      age <- "age"
-      period <- "period"
-      message("No names for age and period columns were given. Using columns named 'age' and 'period'.")
-    }
-    # If only age provided:
-  } else if (!is.null(age) && is.null(period)) {
-    # If df does not contain column named "period":
-    if (!c("Period") %in% names(df)) {
-      stop("No column named 'period' was found in the data frame. Please provide the name of the period column. (period = <name of period column>)")
-    } else{
-      period <- "period"
-      message("No name for the period column was given. Using column named 'period'.")
-    }
-  } else if (is.null(age) && !is.null(period)) {
-    # If df does not contain column named "period":
-    if (!c("age") %in% names(df)) {
-      stop("No column named 'age' was found in the data frame. Please provide the name of the age column. (age = <name of age column>)")
-    } else{
-      age <- "age"
-      message("No name for the age column was given. Using column named 'age'.")
-    }
-  }
-
-  # Check if stratify_by is a string or vector of strings
-  if (!is.null(stratify_by)) {
-    if (!is.character(stratify_by)) {
-      stop("'stratify_by' must be a string or vector of strings.")
-    }
-  }
-
-  # Ensure the specified columns exist in the data frame
-  missing_cols <- setdiff(c(age, period, stratify_by), names(df))
-  if (length(missing_cols) > 0) {
-    stop("The following provided columns are missing in the data frame: ", paste(missing_cols, collapse = ", "))
-  }
-
-  df <- add_cohort_column(df, age=age, period=period)
-
-  if (!is.null(stratify_by)) {
-    # Convert all stratification variables to factors
-    df <- df %>%
-      mutate(across(all_of(stratify_by), as.factor))
-
-    # Define indicator column name
-    indicator_col <- "Stratum"
-
-    # Create a single indicator variable for all stratification variables
-    df <- df %>%
-      mutate(`Stratum` = as.integer(as.factor(interaction(!!!syms(stratify_by), sep = "_"))))
-
-    # Create the correspondence table (mapping between stratification variables and factor levels)
-    correspondence_table <- df %>%
-      select(all_of(stratify_by), `Stratum`) %>%
-      distinct() %>%
-      arrange(`Stratum`)  # Ensure ordered factor levels
-
-    correspondence_table <- as.data.frame(correspondence_table)
-
-    # Group the data by all specified grouping variables and the stratify indicator
-    df_grouped <- df %>%
-      group_by(across(all_of(c(age, period))), .data[[indicator_col]]) %>%
-      select(!!!syms(c(age, period, "cohort", stratify_by)), everything())
-
-    # Display correspondence table
-    message("NB! Added cohort column, calculated from cohort=period-age+max(age).")
-    message("Strata are given the following factor levels in the data frame:\n",
-            paste(capture.output(print(correspondence_table, row.names=FALSE)), collapse = "\n"))
-    message("Grouped data frame into ", number_of_strata(df, stratify_by), " strata, with ", number_of_groups(df, c(age, period)), "age-period groups per strata.")
-    return(df_grouped)
-  }
-
-  # Group the data by age and period
-  df_grouped <- df %>%
-    group_by(across(all_of(c(age, period)))) %>%
-    select(!!!syms(c(age, period, "cohort")), everything())
-
-  message("NB! Added cohort column, calculated from cohort=period-age+max(age).")
-  message("Grouped data frame into ", n_groups(df_grouped), " age-period groups.")
-  return(df_grouped)
-}
+utils::globalVariables(c(":=", "eval_select", "eval_tidy"))
 
 ##############################################################################
 ### Function for adding cohort to data frame
@@ -262,63 +33,33 @@ group_APC_df <- function(df, age=NULL, period=NULL, stratify_by=NULL) {
 #'
 #' Adds a column for birth cohorts to a data frame, derived from specified age and period columns through the relation \code{cohort = period - age}.
 #'
-#' @param df Data frame with age and period column.
-#' @param age Name of age column in data frame. \cr
-#'      **Defaults to \code{"age"} if not specified.**
-#' @param period Name of period column in data frame. \cr
-#'      **Defaults to \code{"period"} if not specified.**
+#' @param data Data frame with age and period column.
+#' @param age Age column in \code{data}.
+#' @param period Period column in \code{data}.
+#' @param cohort_name Name of the cohort column to be created. Defaults to \code{"cohort"}.
 #' @return Data frame with additional column for birth cohorts added.
 #' @export
 
-add_cohort_column <- function(df, age=NULL, period=NULL) {
+add_cohort_column <- function(data, age, period, cohort_name="cohort") {
 
-  # Ensure the specified age and period columns exist in the data frame
-  if (!all(c(age, period) %in% names(df))) {
-    stop("The specified age or period columns do not exist in the data frame.")
-  }
-  # Check that age and period are character strings (if provided)
-  if (!is.null(age) && !is.character(age)) {
-    stop("`age` must be a string, the name of the age column.")
-  }
-  if (!is.null(period) && !is.character(period)) {
-    stop("`period` must be a string, the name of the period column.")
-  }
+  # Keep quoted and unqoted column names for tidy evaluation
 
-  if (is.null(age) && is.null(period)) {
-    # First check if columns named "age" and "period" actually exist
-    if (!all(c("age", "period") %in% names(df))) {
-      stop("No columns named 'age' and/or 'period' were found in the data frame. Please provide the column names explicitly.")
-    } else {
-      # Then fall back and notify the user
-      age <- "age"
-      period <- "period"
-      message("Names for age and period columns were not provided. Using columns named 'age' and 'period'.")
-    }
-    # If only age provided:
-  } else if (!is.null(age) && is.null(period)) {
-    # If df does not contain column named "period":
-    if (!c("Period") %in% names(df)) {
-      stop("No column named 'period' was found in the data frame. Please provide the name of the period column. (period = <name of period column>)")
-    } else{
-      period <- "period"
-      message("Name for the period column was not provided. Using column named 'period'.")
-    }
-  } else if (is.null(age) && !is.null(period)) {
-    # If df does not contain column named "period":
-    if (!c("age") %in% names(df)) {
-      stop("No column named 'age' was found in the data frame. Please provide the name of the age column. (age = <name of age column>)")
-    } else{
-      age <- "age"
-      message("Name for the age column was not provided. Using column named 'age'.")
-    }
+  age_q <- resolve_column(enquo(age))
+  period_q <- resolve_column(enquo(period))
+
+  age_name <- as_name(age_q)
+  period_name <- as_name(period_q)
+
+  if (!all(c(age_name, period_name) %in% names(data))) {
+    stop("The specified age and/or period columns do not exist in the data frame.")
   }
 
   # Add the cohort column by subtracting the age from the period
-  df <- df %>%
-    mutate(cohort = !!sym(period) - !!sym(age)) %>%
-    relocate(!!sym(age), !!sym(period), cohort, .before = everything()) # Move age, period, and cohort to the front
+  data <- data %>%
+    mutate(!!cohort_name := !!period_q - !!age_q) %>%
+    relocate(!!age_q, !!period_q, !!sym(cohort_name), .before = everything())  # Move age, period, and cohort to the front
 
-  return(df)
+  return(data)
 }
 
 ##############################################################################
@@ -328,69 +69,35 @@ add_cohort_column <- function(df, age=NULL, period=NULL) {
 #'
 #' Adds a column for cohort indices to a data frame, derived from specified age and period index columns through the relationship \code{cohort index = period index - age index + max(age index)}.
 #'
-#' @param df Data frame with age and period column.
-#' @param age_index Name of age column in data frame. \cr
-#'      **Defaults to \code{"age_index"} if not specified.**
-#' @param period_index Name of period column in data frame. \cr
-#'      **Defaults to \code{"period_index"} if not specified.**
+#' @param data Data frame with age and period columns.
+#' @param age_index Age index column in \code{data}.
+#' @param period_index Period index column in \code{data}.
+#' @param cohort_name Name of the cohort index column to be created. Defaults to \code{"cohort_index"}.
 #' @return Data frame with additional column for cohort indices.
 #' @export
 
-add_cohort_index <- function(df, age_index=NULL, period_index=NULL) {
+add_cohort_index <- function(data, age_index, period_index, cohort_name="cohort_index") {
+
+  # Keep quoted and unqoted column names for tidy evaluation
+
+  age_q <- resolve_column(enquo(age_index))
+  period_q <- resolve_column(enquo(period_index))
+
+  age_name <- as_name(age_q)
+  period_name <- as_name(period_q)
 
   # Ensure the specified age and period columns exist in the data frame
-  if (!all(c(age_index, period_index) %in% names(df))) {
-    stop("The specified age index or period index columns do not exist in the data frame.")
-  }
-  # Check that age and period are character strings (if provided)
-  if (!is.null(age_index) && !is.character(age_index)) {
-    stop("`age_index` must be a string, the name of the age index column.")
-  }
-  if (!is.null(period_index) && !is.character(period_index)) {
-    stop("`period_index` must be a string, the name of the period index column.")
-  }
-
-  if (is.null(age_index) || is.null(period_index)) {
-    # First check if columns named "age" and "period" actually exist
-    if (!all(c("age_index", "period_index") %in% names(df))) {
-      stop("No columns named 'age_index' and/or 'period_index' were found in the data frame. Please provide the column names explicitly.")
-    } else {
-      # Then fall back and notify the user
-      age_index <- "age_index"
-      period_index <- "period_index"
-      message("No names for age and period index columns were given. Using columns named 'age_index' and 'period_index'.")
-    }
-    # If only age provided:
-  } else if (!is.null(age_index) && is.null(period_index)) {
-    # If df does not contain column named "period":
-    if (!c("period_index") %in% names(df)) {
-      stop("No column named 'period_index' was found in the data frame. Please provide the name of the period index column.")
-    } else{
-      period_index <- "period_index"
-      message("No name for the period index column was given. Using column named 'period_index'.")
-    }
-  } else if (is.null(age_index) && !is.null(period_index)) {
-    # If df does not contain column named "period":
-    if (!c("age_index") %in% names(df)) {
-      stop("No column named 'age_index' was found in the data frame. Please provide the name of the age index column.")
-    } else{
-      age <- "age"
-      message("No name for the age index column was given. Using column named 'age_index'.")
-    }
-  }
-
-  # Ensure the specified age and period columns exist in the data frame
-  if (!all(c(age_index, period_index) %in% names(df))) {
-    stop("The specified age or period columns do not exist in the data frame.")
+  if (!all(c(age_name, period_name) %in% names(data))) {
+    stop("The specified age and/or period columns do not exist in the data frame.")
   }
 
   # Add the cohort column by subtracting the age from the period
-  df <- df %>%
+  data <- data %>%
     mutate(
-      cohort_index = as.integer(!!sym(period_index) - !!sym(age_index) + max(!!sym(age_index)))
+      !!cohort_name := as.integer(!!period_q - !!age_q + max(!!age_q))
     ) %>%
-    relocate(!!sym(age_index), !!sym(period_index), cohort_index, .before = everything())
-  return(df)
+    relocate(!!age_q, !!period_q, !!sym(cohort_name), .before = everything())
+  return(data)
 }
 
 ##############################################################################
@@ -398,23 +105,23 @@ add_cohort_index <- function(df, age_index=NULL, period_index=NULL) {
 #' Add 1-indexed age, period and cohort indices via match()
 #'
 #' @param df            Data frame
-#' @param age_col       Name of the age (or age-group) column (string)
-#' @param period_col    Name of the period (e.g. year) column (string)
-#' @param age_order     Character vector giving the *desired* ordering of age levels
-#' @param period_order  Vector (numeric or character) giving the *desired* ordering of periods
-#' @param M             Grid factor = (width of age intervals)/(width of period intervals)
+#' @param age_name       Name of the age (or age-group) column (string).
+#' @param period_name    Name of the period (e.g. year) column (string).
+#' @param age_order     Character vector giving the desired ordering of age levels
+#' @param period_order  Vector (numeric or character) giving the desired ordering of periods
+#' @param M             Grid factor, given by \eqn{M = \frac{\text{width of age intervals}{width of period intervals}}}
 #' @return              Data frame with new columns: age_index, period_index, cohort_index
 #' @keywords internal
 add_APC_by_match <- function(df,
-                             age_col,
-                             period_col,
+                             age_name,
+                             period_name,
                              age_order,
                              period_order,
                              M = 1) {
   df %>%
     mutate(
-      age_index    = match(.data[[age_col]],    age_order),
-      period_index = match(.data[[period_col]], period_order)
+      age_index    = match(.data[[age_name]],    age_order),
+      period_index = match(.data[[period_name]], period_order)
     ) %>%
     mutate(
       cohort_index = M * (max(age_index, na.rm=TRUE) - age_index) + period_index
@@ -425,40 +132,39 @@ add_APC_by_match <- function(df,
 #' Add 1-indexed APC columns to data frame, handling numeric or categorical age/period
 #'
 #'
-#' @param df              A data.frame
-#' @param age             Name of the age column (string).
-#'                        Defaults to "age" if both \code{age} and \code{period} are NULL.
-#' @param period          Name of the period column (string).
-#'                        Defaults to "period" if both \code{age} and \code{period} are NULL.
+#' @param data            Data frame with age and period columns.
+#' @param age             Age column in \code{data}.
+#' @param period          Period column in \code{data}.
 #' @param age_order       (Optional) Character vector giving the desired order of age levels.
-#'                        If NULL and age is factor/character, uses \code{unique(sort(df[[age]]))}.
+#'                        If NULL and the \code{age} column is factor/character, uses \code{unique(sort(data[[age]]))}.
 #' @param period_order    (Optional) Vector (numeric or character) giving the desired order of periods.
-#'                        If NULL and period is factor/character, uses \code{unique(sort(df[[period]]))}.
+#'                        If NULL and \code{period} column is a factor/character, uses \code{unique(sort(data[[period]]))}.
 #' @param M               Grid factor = (width of age intervals)/(width of period intervals).
 #'                        Defaults to 1 (i.e. assuming equal sized age and period increments).
 #' @return                The data frame with new columns \code{age_index}, \code{period_index}, \code{cohort_index},
 #'                        and sorted by \code{(age_index, period_index)}.
 #' @export
-as.APC.df <- function(df,
-                      age           = NULL,
-                      period        = NULL,
+as.APC.df <- function(data,
+                      age,
+                      period,
                       age_order     = NULL,
                       period_order  = NULL,
                       M             = 1) {
 
-  # 1) Figure out which columns to use
-  if (is.null(age) && is.null(period)) {
-    if (!all(c("age","period") %in% names(df)))
-      stop("Need columns 'age' and 'period' (or specify age=..., period=...).")
-    age    <- "age";    period <- "period"
-    message("Using 'age' and 'period'.")
-  }
-  if (!all(c(age,period) %in% names(df)))
-    stop("Specified age/period columns not found in df.")
+  # Keep quoted and unqoted column names for tidy evaluation
+
+  age_q <- resolve_column(enquo(age))
+  period_q <- resolve_column(enquo(period))
+
+  age_name <- as_name(age_q)
+  period_name <- as_name(period_q)
+
+  if (!all(c(age_name, period_name) %in% names(data)))
+    stop("The specified age and/or period columns do not exist in the data frame.")
 
   # 2) Decide path: numeric shift vs. match()
-  age_vec    <- df[[age]]
-  period_vec <- df[[period]]
+  age_vec    <- data[[as_name(enquo(age))]]
+  period_vec <- data[[as_name(enquo(period))]]
 
   use_match <- (!is.numeric(age_vec) || !is.numeric(period_vec)) ||
     !is.null(age_order)  || !is.null(period_order)
@@ -469,9 +175,9 @@ as.APC.df <- function(df,
     if (is.null(period_order)) period_order <- sort(unique(period_vec))
 
     return(
-      add_APC_by_match(df,
-                       age_col      = age,
-                       period_col   = period,
+      add_APC_by_match(data,
+                       age_name      = age_name,
+                       period_name   = period_name,
                        age_order    = age_order,
                        period_order = period_order,
                        M            = M)
@@ -484,13 +190,20 @@ as.APC.df <- function(df,
   cohort_idx <- period_idx - age_idx + max(age_idx, na.rm=TRUE)
 
   # 4) Bind back, relocate, sort
-  df$age_index    <- age_idx
-  df$period_index <- period_idx
-  df$cohort_index <- cohort_idx
+  data$age_index    <- age_idx
+  data$period_index <- period_idx
+  data$cohort_index <- cohort_idx
 
-  df %>%
-    relocate(age_index, period_index, cohort_index, all_of(age), all_of(period)) %>%
-    arrange(age_index, period_index)
+  data %>%
+    relocate(
+      age_index,
+      period_index,
+      cohort_index,
+      !!age_q,
+      !!period_q,
+      .before = everything()
+    ) %>%
+    arrange(!!age_q, !!period_q)
 }
 
 ###################################################################################
@@ -502,210 +215,117 @@ as.APC.df <- function(df,
 #' preserving the potentially complex structure returned by aggregator functions
 #' (like data frames or inla.mdata objects) within list-columns.
 #' Aggregation is performed according to sufficient statistics for the specified
-#' distribution of the columns. Possible distributions: Gaussian, binomial, multinomial.
+#' distribution of the columns. Possible distributions: Gaussian, binomial.
 #' This function aggregates the entire data frame into a single row result.
 #'
-#' @param df A data frame.
-#' @param gaussian Vector of names for the Gaussian columns to be aggregated using `gaussian_aggregator`. \cr
-#'   **Defaults to NULL (optional).**
+#' @param data A data frame.
+#' @param gaussian Gaussian columns in \code{data} to be aggregated. The Gaussian observations are collapsed into an \code{inla.mdata} object compatible with the \code{agaussian} family, see \code{\link[INLA]{agaussian}} for details.
+#'   **Defaults to \code{NULL} (optional).**
 #' @param gaussian.precision.scales Scales for the precision of Gaussian observations. \cr
 #'   Must be one of: \cr
-#'   - `NULL`: Use default scales of 1 for all observations in all `gaussian` columns.
-#'   - A single numeric vector: Applied only if *exactly one* column is specified in `gaussian`. Length must match `nrow(data)`.
-#'   - A *named list*: Where `names(gaussian.precision.scales)` are the names of the Gaussian columns (must match columns specified in `gaussian`). Each list element must be a numeric vector of scales for that column, with length matching `nrow(data)`. \cr
-#'   **Defaults to NULL.**
-#' @param binomial Vector of names for the binomial columns to be aggregated using `binomial_aggregator`. \cr
+#'   - \code{NULL}: Use default scales of 1 for all observations in all \code{gaussian} columns.
+#'   - A single numeric vector: Applied only if *exactly one* column is specified in \code{gaussian}. Length must match \code{nrow(data)}.
+#'   - A *named list*: Where \code{names(gaussian.precision.scales)} are the names of the Gaussian columns (must match columns specified in \code{gaussian}). Each list element must be a numeric vector of scales for that column, with length matching \code{nrow(data)}. \cr
 #'   **Defaults to NULL (optional).**
-#' @param multinomial Vector of names for the multinomial columns to be aggregated using `multinomial_aggregator`. \cr
-#'   **Defaults to NULL (optional).**
-#' @param multinomial.categories A named list where names correspond to columns in `multinomial`,
-#'   and each element is a character vector of all possible categories for that multinomial variable.
-#'   If `NULL` for a given column, categories are inferred from the data (may lead to inconsistency if some categories aren't present).
-#'   **Defaults to NULL (infer all categories).**
+#' @param binomial Binomial columns in \code{data} to be aggregated.
+#'   **Defaults to \code{NULL} (optional).**
 #'
 #' @return A single-row data frame (tibble) containing:
-#'   - A column 'n' with the total number of rows in the input data.
-#'   - For each specified column in `gaussian`, `binomial`, `multinomial`, a corresponding
-#'     *list-column* (named e.g., `colname_gaussian`, `colname_binomial`, `colname_multinomial`).
-#'     Each element of this list-column can be accessed by using the `$` operator twice, e.g. through `df$colname_gaussian$Y1`.
+#'   - A column \code{n} with the total number of rows in the input data.
+#'   - For each specified column in \code{gaussian}, \code{binomial}, a corresponding
+#'     *list-column* (named e.g., \code{colname_gaussian}, \code{colname_binomial}.
+#'     Each element of these list-columns can be accessed by using the \code{$} operator twice, e.g. through \code{data$colname_gaussian$Y1} for the first element of the Gaussian summary.
 #'
 #' @export
 
-aggregate_df <- function(df,
+aggregate_df <- function(data,
                          gaussian = NULL,
                          gaussian.precision.scales = NULL,
-                         binomial = NULL,
-                         multinomial = NULL,
-                         multinomial.categories = NULL) {
+                         binomial = NULL) {
 
   if (!requireNamespace("INLA", quietly = TRUE)) {
     stop("This function requires the INLA package. Please install it using:\n",
          'install.packages("INLA", repos = c(INLA = "https://inla.r-inla-download.org/R/stable"))')
   }
 
-  # --- Input Validation ---
-  if (!is.data.frame(df)) {
-    stop("'df' must be a data frame.")
+  if (!is.data.frame(data)) {
+    stop("'data' must be a data frame.")
   }
-  n_rows <- nrow(df)
+  n_rows <- nrow(data)
   if (n_rows == 0) {
-    stop("'df' has 0 rows.")
+    stop("'data' has 0 rows.")
   }
 
-  check_cols_exist(c(gaussian, binomial, multinomial), df)
+  gaussian_q <- enquos(gaussian, .ignore_empty = "all")
+  binomial_q <- enquos(binomial, .ignore_empty = "all")
 
-  # Validate gaussian.precision.scales structure
-  if (!is.null(gaussian) && length(gaussian) > 0) {
-    if (!is.null(gaussian.precision.scales)) {
-      if (is.list(gaussian.precision.scales)) {
-        if (is.null(names(gaussian.precision.scales)) || any(names(gaussian.precision.scales) == "")) {
-          stop("'gaussian.precision.scales' list must be named.")
-        }
-        if (!all(names(gaussian.precision.scales) %in% gaussian)) {
-          stop("Names in 'gaussian.precision.scales' list must match columns specified in 'gaussian'.")
-          # Could relax to subset if needed, but exact match is safer.
-        }
-        # Check lengths within the list
-        for (col_name in names(gaussian.precision.scales)) {
-          if (length(gaussian.precision.scales[[col_name]]) != n_rows) {
-            stop(paste0("Length of precision scales for '", col_name, "' in 'gaussian.precision.scales' (",
-                        length(gaussian.precision.scales[[col_name]]),
-                        ") does not match number of data rows (", n_rows, ")."))
-          }
-          if(!is.numeric(gaussian.precision.scales[[col_name]])) {
-            stop(paste0("Scales for '", col_name, "' must be numeric."))
-          }
-        }
-      } else if (is.vector(gaussian.precision.scales, mode = "numeric")) {
-        if (length(gaussian) != 1) {
-          stop("Vector of precision sales is only allowed when exactly one Gaussian column is specified. For multiple Gaussian columns you must provide precision scales in a named list (with name of Gaussian columns).")
-        }
-        if (length(gaussian.precision.scales) != n_rows) {
-          stop(paste0("Length of vector 'gaussian.precision.scales' (",
-                      length(gaussian.precision.scales),
-                      ") does not match number of data rows (", n_rows, ")."))
-        }
-      } else {
-        stop("'gaussian.precision.scales' must be NULL, a numeric vector (for single Gaussian column), or a named list.")
+  gaussian <- names(eval_select(expr(c(!!!gaussian_q)), data))
+  binomial <- names(eval_select(expr(c(!!!binomial_q)), data))
+
+  processed_scales <- list()
+  scales_q <- enquo(gaussian.precision.scales)
+
+  if (!quo_is_null(scales_q)) {
+    scales_val <- eval_tidy(scales_q, data = data)
+
+    scales_val <- as.numeric(scales_val)
+
+    if (is.numeric(scales_val) && is.vector(scales_val)) {
+      processed_scales <- setNames(
+        rep(list(scales_val), length(gaussian)),
+        gaussian
+      )
+    } else if (is.list(scales_val)) {
+      if (!all(names(scales_val) %in% gaussian)) {
+        stop("Names of gaussian.precision.scales must match gaussian columns.")
       }
+      processed_scales <- scales_val
+    } else {
+      stop("gaussian.precision.scales must resolve to a numeric vector or a named list of numeric vectors.")
     }
-    # If gaussian.precision.scales is NULL, it's fine, gaussian_aggregator defaults
-  } else {
-    # If no gaussian columns, scales argument is ignored (or should be NULL)
-    if (!is.null(gaussian.precision.scales)) {
-      warning("`gaussian.precision.scales` provided but no `gaussian` columns specified. Ignoring scales.")
-      gaussian.precision.scales <- NULL # Ensure consistency internally
+
+    bad <- names(processed_scales)[
+      vapply(processed_scales, function(x) length(x) != n_rows, logical(1))
+    ]
+    if (length(bad)) {
+      stop("precision scales for columns ", paste(bad, collapse=", "), " are not length ", n_rows)
     }
   }
 
-  # Validate multinomial.categories
-  if (!is.null(multinomial) && length(multinomial) > 0) {
-    if (!is.null(multinomial.categories)) {
-      if (!is.list(multinomial.categories) || is.null(names(multinomial.categories))) {
-        stop("'multinomial.categories' must be a named list, with the names of the multinomial columns.")
-      }
-      if (!all(names(multinomial.categories) %in% multinomial)) {
-        warning("Names in 'multinomial.categories' do not perfectly match 'multinomial' columns. Only matching names will be used.")
-        # Keep only relevant categories
-        multinomial.categories <- multinomial.categories[names(multinomial.categories) %in% multinomial]
-      }
-      # Further checks could be added (e.g., each element is character vector)
-    }
-  }
-
-
-  # --- Aggregation ---
-
-  # Step 1: Calculate the total number of observations (rows)
   count_summary <- tibble(n = n_rows)
 
-  # Step 2: Aggregate Gaussian variables
-  if (!is.null(gaussian) && length(gaussian) > 0) {
-    gaussian_summary <- df %>%
-      summarise(across(all_of(gaussian),
-                                     ~ { # Use braces for multi-step logic inside lambda
-                                       current_col <- cur_column()
-
-                                       # Determine the correct precision scale for this column
-                                       scale_for_this_col <- NULL # Default
-                                       if (is.list(gaussian.precision.scales)) {
-                                         # Lookup by name, default to NULL if name not present (should be caught by validation)
-                                         scale_for_this_col <- gaussian.precision.scales[[current_col]]
-                                       } else if (is.vector(gaussian.precision.scales, mode="numeric")) {
-                                         # This case implies length(gaussian)==1 was validated
-                                         scale_for_this_col <- gaussian.precision.scales
-                                       } # Else: It's NULL, scale_for_this_col remains NULL (handled by agaussian)
-
-                                       # Call the original gaussian_aggregator
-                                       gaussian_aggregator(
-                                         df = cur_data(),
-                                         col_name = current_col,
-                                         precision.scale = scale_for_this_col
-                                       )
-                                     },
-                                     # Names will be like: colname_gaussian
-                                     .names = "{col}_gaussian"))
+  if (length(gaussian) > 0) {
+    gaussian_summary <- data %>%
+      summarise(
+        across(
+          all_of(gaussian),
+          ~ gaussian_aggregator(
+            y = .x,
+            precision.scale = processed_scales[[cur_column()]]
+          ),
+          .names = "{col}_gaussian"
+        )
+      )
   } else {
-    gaussian_summary <- tibble(.rows = 1) # Placeholder, for bind_cols() to work in step 5
+    gaussian_summary <- tibble(.rows = 1)
   }
 
-
-  # Step 3: Aggregate binomial variables
   if (!is.null(binomial) && length(binomial) > 0) {
-    binomial_summary <- df %>%
+    binomial_summary <- data %>%
       summarise(across(all_of(binomial),
-                                     ~ binomial_aggregator(df = cur_data(), col_name = cur_column()),
-                                     .names = "{col}_binomial"))
+                       ~ binomial_aggregator(data = cur_data(), col_name = cur_column()),
+                       .names = "{col}_binomial"))
   } else {
     binomial_summary <- tibble(.rows = 1)
   }
 
-  # Step 4: Aggregate multinomial variables
-  if (!is.null(multinomial) && length(multinomial) > 0) {
-    # Pre-calculate all categories for requested columns if not fully provided
-    # Use the provided list, falling back to inference for missing ones
-    final_multinomial_categories <- list()
-    for(col in multinomial) {
-      if (!is.null(multinomial.categories) && col %in% names(multinomial.categories)) {
-        final_multinomial_categories[[col]] <- multinomial.categories[[col]]
-      } else {
-        warning(paste0("Inferring categories for multinomial column '", col,
-                       "'. If some categories aren't present in the data they will be overlooked. Supply categories explicitly via 'multinomial.categories' for robustness."), call. = FALSE)
-        # Ensure factor levels are consistent if original is factor, else use unique
-        if(is.factor(df[[col]])) {
-          final_multinomial_categories[[col]] <- levels(df[[col]])
-        } else {
-          final_multinomial_categories[[col]] <- unique(df[[col]])
-        }
-      }
-    }
-
-    multinomial_summary <- df %>%
-      summarise(across(all_of(multinomial),
-                                     ~ {
-                                       current_col <- cur_column() # String, current column
-
-                                       multinomial_aggregator(
-                                         df = cur_data(),
-                                         col_name = current_col,
-                                         all_categories = final_multinomial_categories[[current_col]]
-                                       )
-                                     },
-                                     .names = "{col}_multinomial"))
-  } else {
-    multinomial_summary <- tibble(.rows = 1)
-  }
-
-
-  # Step 5: Combine all aggregated results
-  aggregated_df <- bind_cols(
+  aggregated_data <- bind_cols(
     count_summary,
     gaussian_summary,
-    binomial_summary,
-    multinomial_summary
+    binomial_summary
   ) %>% as_tibble()
 
-  return(aggregated_df)
+  return(aggregated_data)
 }
 
 ##############################################################################
@@ -718,151 +338,94 @@ aggregate_df <- function(df,
 #' Aggregation is performed according to sufficient statistics for the specified
 #' distribution of the columns to be aggregated.
 #'
-#' @param grouped_df Grouped data frame, created using dplyr grouping methods.
-#' @param gaussian Vector of names for the Gaussian columns to be aggregated. \cr
-#'   Passed directly to `aggregate_df` for each group. \cr
-#'   **Defaults to NULL (optional).**
+#' @param data Data frame to be grouped and aggregated.
+#' @param by Columns in \code{data} for which to group data by.
+#' @param gaussian Gaussian columns in \code{grouped_data} to be aggregated. \cr
+#'   **Defaults to \code{NULL} (optional).**
 #' @param gaussian.precision.scales Scales for the precision of Gaussian observations. \cr
-#'   Passed directly to `aggregate_df` for each group. The validation within
-#'   `aggregate_df` will apply to the subset of data *within each group*.
-#'   See \code{\link{aggregate_df}} documentation for format details.
+#'   See \code{\link{aggregate_df}} documentation for format details, and \code{\link[INLA]{agaussian}} for a more theoretical walkthrough.
 #'   **Defaults to NULL.**
-#' @param binomial Vector of names for the binomial columns to be aggregated. \cr
-#'   Passed directly to `aggregate_df` for each group. \cr
-#'   **Defaults to NULL (optional).**
-#' @param multinomial Vector of names for the multinomial columns to be aggregated. \cr
-#'   Passed directly to `aggregate_df` for each group. \cr
-#'   **Defaults to NULL (optional).**
-#' @param multinomial.categories A named list where names correspond to columns in `multinomial`,
-#'   and each element is a character vector of all possible categories for that multinomial variable.
-#'   If `NULL` for a given column, categories are inferred *across the entire input `grouped_data`*
-#'   before aggregation to ensure consistency across groups. This inferred list is then
-#'   passed to `aggregate_df` for each group. \cr
-#'   **Defaults to NULL (infer all categories from data).**
+#' @param binomial Binomial columns in \code{grouped_data} to be aggregated. \cr
+#'   **Defaults to \code{NULL} (optional).**
 #'
 #' @return Aggregated data frame (tibble), with one row per group, containing
-#'   grouping variables, count 'n' per group, and aggregated list-columns for
+#'   grouping variables, count \code{n} per group, and aggregated list-columns for
 #'   specified variables as returned by \code{\link{aggregate_df}}.
 #'
 #' @export
 
-aggregate_grouped_df <- function(grouped_df,
+aggregate_grouped_df <- function(data,
+                                 by,
                                  gaussian = NULL,
                                  gaussian.precision.scales = NULL,
-                                 binomial = NULL,
-                                 multinomial = NULL,
-                                 multinomial.categories = NULL) {
+                                 binomial = NULL) {
 
-  # --- Input Validation ---
-  if (!is_grouped_df(grouped_df)) {
-    stop("'grouped_df' must be a data frame grouped using dplyr methods, or group_df()/group_APC_df() from MAPCtools.")
-  }
+  ## ------------------------------------------------------------------
+  ## 1.  Add a row-id so we know which original rows belong to a group
+  ## ------------------------------------------------------------------
+  data <- data %>% mutate(.row_id___ = row_number())
 
-  group_vars <- group_vars(grouped_df)
-  if (length(group_vars) == 0) {
-    # This check is slightly redundant with is_grouped_df but doesn't hurt
-    stop("'grouped_df' does not appear to be grouped. Please verify group structure, or group using dplyr methods or group_df()/group_APC_df() from MAPCtools.")
-  }
+  ## ------------------------------------------------------------------
+  ## 2.  Prepare grouping
+  ## ------------------------------------------------------------------
+  gb_expr  <- enquo(by)
+  gb_names <- names(eval_select(expr(c(!!gb_expr)), data))
 
-  # Check existence of all columns
-  check_cols_exist(c(gaussian, binomial, multinomial), grouped_df)
+  grouped_data <- data %>% group_by(!!!syms(gb_names))
 
+  ## ------------------------------------------------------------------
+  ## 3.  Pre-resolve column selections once (character vectors)
+  ## ------------------------------------------------------------------
+  gaussian_cols <- names(eval_select(expr(c(!!!enquos(gaussian,
+                                                      .ignore_empty = "all"))),
+                                     data))
+  binomial_cols <- names(eval_select(expr(c(!!!enquos(binomial,
+                                                      .ignore_empty = "all"))),
+                                     data))
 
-  # --- Pre-calculate Multinomial Categories (if inferring from whole dataset) ---
-  # This ensures consistency across groups if categories are not explicitly provided.
-  # The logic is similar to your original aggregate_grouped_df.
-  final_multinomial_categories <- list()
-  if (!is.null(multinomial) && length(multinomial) > 0) {
-    # Use provided categories first
-    if (!is.null(multinomial.categories)) {
-      if (!is.list(multinomial.categories) || is.null(names(multinomial.categories))) {
-        stop("'multinomial.categories' must be a named list.")
-      }
-      # Keep only relevant categories and ensure they are character
-      relevant_names <- intersect(names(multinomial.categories), multinomial)
-      if (length(relevant_names) < length(names(multinomial.categories))) {
-        warning("Some names in 'multinomial.categories' do not match 'multinomial' columns and will be ignored.", call.=FALSE)
-      }
-      if(length(relevant_names) > 0) {
-        final_multinomial_categories <- setNames(lapply(multinomial.categories[relevant_names], function(cats) {
-          if(!is.character(cats)) {
-            warning("Converting provided multinomial categories to character.", call.=FALSE)
-            as.character(cats)
-          } else {
-            cats
-          }
-        }), relevant_names)
-      }
-    }
+  ## ------------------------------------------------------------------
+  ## 4.  Evaluate the *full* precision-scale object (may be NULL)
+  ## ------------------------------------------------------------------
+  full_scales <- rlang::eval_tidy(enquo(gaussian.precision.scales), data = data)
 
-    # Infer categories for any remaining multinomial columns
-    cols_to_infer <- setdiff(multinomial, names(final_multinomial_categories))
-    if (length(cols_to_infer) > 0) {
-      warning(paste("Inferring categories across the entire input data for these multinomial columns:",
-                    paste(cols_to_infer, collapse=", "),
-                    ". If some categories aren't present in the data they will be overlooked. Supply via 'multinomial.categories' for robustness."),
-              call. = FALSE)
+  ## ------------------------------------------------------------------
+  ## 5.  Aggregate each group
+  ## ------------------------------------------------------------------
+  aggregated <- grouped_data %>%
+    group_modify(~{
 
-      inferred_categories <- lapply(cols_to_infer, function(col) {
-        current_col_data <- pull(grouped_df, !!sym(col)) # Extract column data once
-        if (is.factor(current_col_data)) {
-          unique_vals <- levels(current_col_data)
+      df <- .x                                # rows for this group
+
+      ## ---- 5a.  Slice scales for this group (if supplied) ------------
+      scales_this_grp <- NULL
+      if (!is.null(full_scales)) {
+        idx <- df$.row_id___                  # original positions
+
+        if (is.numeric(full_scales)) {        # single vector case
+          scales_this_grp <- full_scales[idx]
+
+        } else if (is.list(full_scales)) {    # named-list case
+          scales_this_grp <- lapply(full_scales, `[`, idx)
+
         } else {
-          unique_vals <- unique(current_col_data)
+          stop("`gaussian.precision.scales` must be a numeric vector ",
+               "or a named list of numeric vectors.")
         }
-        # Ensure inferred categories are sorted characters
-        cats <- as.character(sort(unique_vals))
-        if (length(cats) < 1) {
-          warning(paste0("Inferred categories for column '", col,
-                         "' resulted in zero values after conversion to character. ",
-                         "This column might produce empty results during aggregation."), call. = FALSE)
-        } else if (length(cats) < 2) {
-          warning(paste0("Inferred categories for column '", col,
-                         "' resulted in only one unique value: '", cats,"'. ",
-                         " Should there be more?"), call. = FALSE)
-        }
-        cats
-      })
-      names(inferred_categories) <- cols_to_infer
-      final_multinomial_categories <- c(final_multinomial_categories, inferred_categories)
-    }
-    # Ensure final list only contains columns actually in `multinomial`
-    final_multinomial_categories <- final_multinomial_categories[multinomial]
+      }
 
-  } else {
-    # If multinomial is NULL, make sure categories arg is also NULL for aggregate_df
-    multinomial.categories <- NULL
-  }
+      ## ---- 5b.  Call aggregate_df() on *this* group -------------------
+      aggregate_df(
+        df %>% select(-.row_id___),           # drop helper column
+        gaussian  = gaussian_cols,
+        gaussian.precision.scales = scales_this_grp,
+        binomial  = binomial_cols
+      )
+    }) %>%
+    ungroup()
 
-
-  # --- Perform Aggregation using group_modify ---
-  # Apply aggregate_df to each group (.x).
-  # Pass all relevant arguments.
-  # .keep = TRUE ensures grouping variables are retained.
-  aggregated_df <- group_modify(
-    grouped_df,
-    ~ aggregate_df(
-      df = .x, # The data subset for the current group
-      gaussian = gaussian,
-      # Pass the scales argument. aggregate_df validation will apply to .x
-      # Note: If scales were meant to be indexed from the original full dataset,
-      # this direct pass might require aggregate_df or the aggregator helper
-      # to be aware or handle potential length mismatches gracefully.
-      # Often, scales might be *columns* in the data, which works fine here.
-      gaussian.precision.scales = gaussian.precision.scales,
-      binomial = binomial,
-      multinomial = multinomial,
-      # Pass the potentially pre-processed, consistent category list
-      multinomial.categories = final_multinomial_categories
-    ),
-    .keep = TRUE # Keep the grouping variables
-  )
-
-  # The result automatically includes group_vars and the columns from aggregate_df
-  # (n, col1_gaussian, col2_binomial, etc.)
-
-  return(aggregated_df)
+  aggregated
 }
+
 
 ##############################################################################
 # Function for creating NA structure in APC data frame.
@@ -875,103 +438,90 @@ aggregate_grouped_df <- function(grouped_df,
 #' specific modeling approaches, like certain Age-Period-Cohort (APC) models.
 #' Optionally includes unique indices for random effects.
 #'
-#' @param df Data frame with age, period, cohort, and stratification columns.
-#' @param stratify_var Name of the stratification variable column. This column
+#' @param data Data frame with age, period, cohort, and stratification columns.
+#' @param stratify_by Stratification variable column. This column
 #'   will be used to create the stratum-specific NA structure. It should ideally
-#'   be a factor or character vector. **This argument is required.**
-#' @param age_col Name of the age column (must be numeric/integer).
-#'   **Defaults to "age".**
-#' @param period_col Name of the period column (must be numeric/integer).
-#'   **Defaults to "period".**
-#' @param cohort_col Name of the cohort column (must be numeric/integer).
-#'   **Defaults to "cohort".**
+#'   be a factor or character vector.
+#' @param age Age column in \code{data} (must be a numeric/integer column).
+#' @param period Name of the period column (must be a numeric/integer column).
+#' @param cohort Name of the cohort column (must be a numeric/integer column).
 #' @param include.random Logical. Whether to include a unique index ('random')
 #'   for each combination of age, period, and stratum, potentially for use as
 #'   random effect identifiers in models. **Defaults to FALSE.**
 #'
-#' @return A data frame containing the original `age_col`, `period_col`,
-#'   `cohort_col`, and `stratify_var` columns, plus:
-#'   - Dummy indicator columns for each level of `stratify_var` (e.g., `Region_North`, `Region_South`).
-#'   - Stratum-specific age, period, and cohort columns (e.g., `age_Region_North`,
-#'     `period_Region_North`, `cohort_Region_North`), containing the respective
-#'     value if the row belongs to that stratum, and `NA` otherwise.
-#'   - If `include.random = TRUE`, a 'random' column with unique integer indices.
-#'   The rows are ordered primarily by the stratification variable levels.
+#' @return A data frame containing the original \code{age}, \code{period},
+#'   \code{cohort}, and \code{stratify_by} columns, plus:
+#'   - Dummy indicator columns for each level of \code{stratify_by} (e.g., \code{Region_North}, \code{Region_South} if \code{Region} was a stratifying variable).
+#'   - Stratum-specific age, period, and cohort columns (e.g., \code{age_Region_North},
+#'     \code{period_Region_North}, \code{cohort_Region_North}), containing the respective
+#'     value if the row belongs to that stratum, and \code{NA} otherwise.
+#'   - If \code{include.random = TRUE}, a column named \code{random} with unique integer indices.
+#'   The rows are ordered primarily by the stratification variable levels. This is useful for defining random components in MAPC models.
 #'
 #' @export
 
-as.APC.NA.df <- function(df,
-                         stratify_var,
-                         age_col = "age",
-                         period_col = "period",
-                         cohort_col = "cohort",
+as.APC.NA.df <- function(data,
+                         stratify_by,
+                         age,
+                         period,
+                         cohort,
                          include.random = FALSE) {
 
-  # --- Input Validation ---
+  # Input Validation
 
-  # 1. Check df
-  if (!is.data.frame(df)) {
-    stop("'df' must be a data frame.")
+  # Check data
+  if (!is.data.frame(data)) {
+    stop("'data' must be a data frame.")
   }
-  if (nrow(df) == 0) {
-    stop("'df' must not be empty.")
-  }
-
-  # 2. Check core column name arguments
-  if (!is.character(age_col) || length(age_col) != 1) {
-    stop("'age_col' must be a single string.")
-  }
-  if (!is.character(period_col) || length(period_col) != 1) {
-    stop("'period_col' must be a single string.")
-  }
-  if (!is.character(cohort_col) || length(cohort_col) != 1) {
-    stop("'cohort_col' must be a single string.")
+  if (nrow(data) == 0) {
+    stop("'data' must not be empty.")
   }
 
-  # 3. Check stratify_var argument
-  if (is.null(stratify_var)) {
-    stop("'stratify_var' argument must be provided (cannot be NULL).")
-  }
-  if (!is.character(stratify_var) || length(stratify_var) != 1) {
-    stop("'stratify_var' must be a single string.")
-  }
+  # Keep quoted and unqoted column names for tidy evaluation
 
-  # 4. Check column existence in df
-  required_cols <- c(age_col, period_col, cohort_col, stratify_var)
-  missing_cols <- required_cols[!(required_cols %in% colnames(df))]
-  if (length(missing_cols) > 0) {
-    stop("The following required columns are missing from 'df': ",
-         paste(missing_cols, collapse = ", "))
-  }
+  stratify_q <- resolve_column(enquo(stratify_by))
+  stratify_name <- as_name(stratify_q)
 
-  # 5. Check data types of core columns
-  if (!is.numeric(df[[age_col]])) {
-    warning(paste0("Column '", age_col, "' is not numeric. Coercing to numeric. NAs may be introduced."))
-    df[[age_col]] <- suppressWarnings(as.numeric(df[[age_col]]))
-    if (all(is.na(df[[age_col]]))) stop(paste("Coercion failed: Column '", age_col, "' could not be converted to numeric."))
+  age_q <- resolve_column(enquo(age))
+  period_q <- resolve_column(enquo(period))
+  cohort_q <- resolve_column(enquo(cohort))
+
+  age_name <- as_name(age_q)
+  period_name <- as_name(period_q)
+  cohort_name <- as_name(cohort_q)
+
+  # Check column existence in data
+  required_cols <- c(age_name, period_name, cohort_name)
+  check_cols_exist(required_cols, data)
+
+  # Check data types of core columns
+  if (!is.numeric(data[[age_name]])) {
+    warning(paste0("Column '", age_name, "' is not numeric. Coercing to numeric. NAs may be introduced."))
+    data[[age_name]] <- suppressWarnings(as.numeric(data[[age_name]]))
+    if (all(is.na(data[[age_name]]))) stop(paste("Coercion failed: Column '", age_name, "' could not be converted to numeric."))
   }
-  if (!is.numeric(df[[period_col]])) {
-    warning(paste0("Column '", period_col, "' is not numeric. Coercing to numeric. NAs may be introduced."))
-    df[[period_col]] <- suppressWarnings(as.numeric(df[[period_col]]))
-    if (all(is.na(df[[period_col]]))) stop(paste("Coercion failed: Column '", period_col, "' could not be converted to numeric."))
+  if (!is.numeric(data[[period_name]])) {
+    warning(paste0("Column '", period_name, "' is not numeric. Coercing to numeric. NAs may be introduced."))
+    data[[period_name]] <- suppressWarnings(as.numeric(data[[period_name]]))
+    if (all(is.na(data[[period_name]]))) stop(paste("Coercion failed: Column '", period_name, "' could not be converted to numeric."))
   }
-  if (!is.numeric(df[[cohort_col]])) {
-    warning(paste0("Column '", cohort_col, "' is not numeric. Coercing to numeric. NAs may be introduced."))
-    df[[cohort_col]] <- suppressWarnings(as.numeric(df[[cohort_col]]))
-    if (all(is.na(df[[cohort_col]]))) stop(paste("Coercion failed: Column '", cohort_col, "' could not be converted to numeric."))
+  if (!is.numeric(data[[cohort_name]])) {
+    warning(paste0("Column '", cohort_name, "' is not numeric. Coercing to numeric. NAs may be introduced."))
+    data[[cohort_name]] <- suppressWarnings(as.numeric(data[[cohort_name]]))
+    if (all(is.na(data[[cohort_name]]))) stop(paste("Coercion failed: Column '", cohort_name, "' could not be converted to numeric."))
   }
 
   # Check suitability of stratify_var column (allow factors, characters, but warn numerics)
-  if (is.numeric(df[[stratify_var]])) {
-    warning(paste0("Column '", stratify_var, "' is numeric. Treating each unique number as a separate category. Consider converting to factor or character first if this is not intended."))
+  if (is.numeric(data[[stratify_name]])) {
+    warning(paste0("Column '", stratify_name, "' is numeric. Treating each unique number as a separate category. Consider converting to factor or character first if this is not intended."))
   }
-  if (all(is.na(df[[stratify_var]]))) {
-    stop(paste0("The stratification column '", stratify_var, "' contains only NA values."))
+  if (all(is.na(data[[stratify_name]]))) {
+    stop(paste0("The stratification column '", stratify_name, "' contains only NA values."))
   }
   # Convert stratify_var to factor to ensure consistent level handling by dummy_cols
-  df[[stratify_var]] <- as.factor(df[[stratify_var]])
-  if (nlevels(df[[stratify_var]]) == 0) {
-    stop(paste0("The stratification column '", stratify_var, "' has no valid levels after converting to factor (might be all NA or empty)."))
+  data[[stratify_name]] <- as.factor(data[[stratify_name]])
+  if (nlevels(data[[stratify_name]]) == 0) {
+    stop(paste0("The stratification column '", stratify_name, "' has no valid levels after converting to factor (might be all NA or empty)."))
   }
 
 
@@ -980,24 +530,20 @@ as.APC.NA.df <- function(df,
     stop("'include.random' must be a single logical value (TRUE or FALSE).")
   }
 
-  # Step 1: Validate column existence
-  required_cols <- c(age_col, period_col, cohort_col)
-  check_cols_exist(required_cols, df)
-
   # Step 2: Create dummy variables for the stratification variable with a proper prefix
-  dummy_df <- dummy_cols(df, select_columns = stratify_var, remove_first_dummy = FALSE, ignore_na = TRUE)
+  dummy_df <- dummy_cols(data, select_columns = stratify_name, remove_first_dummy = FALSE, ignore_na = TRUE)
 
   dummy_df <- dummy_df %>%
-    select(-all_of(c(age_col, period_col, cohort_col)))
+    select(-all_of(c(age_name, period_name, cohort_name)))
 
-  # Step 3: Get only the (names of) relevant dummy variable columns (starting with "stratify_var_")
-  stratify_levels <- grep(paste0("^", stratify_var, "_"), colnames(dummy_df), value = TRUE)
+  # Step 3: Get only the (names of) relevant dummy variable columns (starting with "stratify_name_")
+  stratify_levels <- grep(paste0("^", stratify_name, "_"), colnames(dummy_df), value = TRUE)
 
   # Step 4: Multiply each dummy variable with age, period, and cohort
   for (level in stratify_levels) {
-    dummy_df[[paste0("age_", level)]] <- dummy_df[[level]] * df[[age_col]]
-    dummy_df[[paste0("period_", level)]] <- dummy_df[[level]] * df[[period_col]]
-    dummy_df[[paste0("cohort_", level)]] <- dummy_df[[level]] * df[[cohort_col]]
+    dummy_df[[paste0("age_", level)]] <- dummy_df[[level]] * data[[age_name]]
+    dummy_df[[paste0("period_", level)]] <- dummy_df[[level]] * data[[period_name]]
+    dummy_df[[paste0("cohort_", level)]] <- dummy_df[[level]] * data[[cohort_name]]
   }
 
   # Step 5: Replace all 0s with NA
@@ -1007,7 +553,7 @@ as.APC.NA.df <- function(df,
   # Step 6: select the dummy indicators AND all three interaction sets
 
   interaction_cols <- grep(
-    paste0("^(age|period|cohort)_", stratify_var, "_"),
+    paste0("^(age|period|cohort)_", stratify_name, "_"),
     names(dummy_df),
     value = TRUE
   )
@@ -1015,7 +561,7 @@ as.APC.NA.df <- function(df,
     select(all_of(stratify_levels), all_of(interaction_cols))
 
   # Step 7: Bind the new dummy variables back to the original dataframe
-  df_new <- bind_cols(dummy_df, df)
+  df_new <- bind_cols(dummy_df, data)
 
   # Step 8: Remove any duplicated column names (e.g., from multiple operations)
   df_new <- df_new %>% select(!matches("\\.\\.\\.[0-9]+"))  # Removes unwanted ...1, ...2 suffixes
@@ -1029,18 +575,20 @@ as.APC.NA.df <- function(df,
     # Step 10: Assign unique random indices based on stratification
     ordered_rows$random <- rep(NA, nrow(ordered_rows))
     i = 1
-    stratify_levels <- unique(ordered_rows[[stratify_var]]) # Get unique levels of stratifying variable
-    for (age in 1:max(ordered_rows[[age_col]])) {
-      for (period in 1:max(ordered_rows[[period_col]])) {
+    stratify_levels <- unique(ordered_rows[[stratify_name]]) # Get unique levels of stratifying variable
+    for (age in 1:max(ordered_rows[[age_name]])) {
+      for (period in 1:max(ordered_rows[[period_name]])) {
         for (stratum in stratify_levels) {
-          ordered_rows$random[ordered_rows[[age_col]] == age &
-                                ordered_rows[[period_col]] == period &
-                                ordered_rows[[stratify_var]] == stratum] <- i
+          ordered_rows$random[ordered_rows[[age_name]] == age &
+                                ordered_rows[[period_name]] == period &
+                                ordered_rows[[stratify_name]] == stratum] <- i
           i = i + 1
         }
       }
     }
   }
+
+  ordered_rows
 
   # Step 11: Return the final structured dataframe
   return(as.data.frame(ordered_rows))
