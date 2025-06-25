@@ -2,29 +2,43 @@
 % Please edit documentation in R/export-ModelEstimation.R
 \name{fit_MAPC}
 \alias{fit_MAPC}
-\title{Fit a multivariable Age-Period-Cohort model using INLA}
+\title{Fit a multivariable age-period-cohort model}
 \usage{
 fit_MAPC(
   data,
   response,
-  apc_format,
   family,
+  apc_format,
   stratify_by,
   reference_strata = NULL,
   age,
   period,
+  grid.factor = 1,
   apc_prior = "rw1",
-  random = F,
-  control.compute = list(config = TRUE, dic = TRUE, waic = TRUE, cpo = TRUE),
+  extra.fixed = NULL,
+  extra.random = NULL,
+  extra.models = NULL,
+  extra.hyper = NULL,
+  include.random = FALSE,
   binomial.n = NULL,
   poisson.offset = NULL,
-  verbose = F
+  inla_formula = NULL,
+  lincombs = NULL,
+  survey.design = NULL,
+  apc_hyperprior = NULL,
+  control.compute = list(dic = TRUE, waic = TRUE, cpo = TRUE),
+  verbose = FALSE
 )
 }
 \arguments{
-\item{data}{A \code{data.frame} containing the raw age, period, response, and stratification variables.}
+\item{data}{A data frame containing the age, period, response, and stratification variables.
+Age and period are assumed to be on the raw scale, not transformed to 1-indexed index columns.
+Factor/character columns are handled, as long as they are properly sorted by \code{sort(unique(data$age/period))} (e.g. values of the form "20-25" for age groups are handled).}
 
 \item{response}{A string naming the response (outcome) variable in \code{data}.}
+
+\item{family}{A string indicating the likelihood family. The default is \code{"gaussian"} with identity link.
+See \code{names(inla.models()$likelihood)} for a list of possible alternatives and use \code{inla.doc()} for detailed docs for individual families.}
 
 \item{apc_format}{A specification of the APC structure, with options:
 \describe{
@@ -35,56 +49,121 @@ fit_MAPC(
 \item{aPc}{Shared period effects, stratum-specific age and cohort effects.}
 \item{apC}{Shared cohort effects, stratum-specific age and period effects.}
 }
-Note: It is also possible to specify models with only one or two time effects, by omitting the letters corresponding to the time effects to be omitted.}
-
-\item{family}{A string indicating the likelihood family. The default is \code{"gaussian"} with identity link.
-See \code{names(inla.models()$likelihood)} for a list of possible alternatives and use \code{inla.doc()} for detailed docs for individual families.}
+Note: It is also possible to specify models with only one or two time effects, by omitting the letters corresponding to the time effects to be excluded.}
 
 \item{stratify_by}{A string naming the column in \code{data} to use for stratification (e.g. region or sex).}
 
-\item{reference_strata}{Optional; value of \code{strata_col} to set as the reference level. Defaults to \code{NULL}.}
+\item{reference_strata}{Level of \code{stratify_by} to set as the reference level.}
 
-\item{age}{Name of the age variable in \code{data}. Defaults to \code{"age"}.}
+\item{age}{Name of the age variable in \code{data}.}
 
-\item{period}{Name of the period variable in \code{data}. Defaults to \code{"period"}.}
+\item{period}{Name of the period variable in \code{data}.}
 
-\item{apc_prior}{A string specifying the prior for the age, period, and cohort effects (e.g. \code{"rw1"}, \code{"rw2"}). Defaults to \code{"rw1"}.}
+\item{grid.factor}{(Optional) Grid factor, defined as the ratio of age interval width to period interval width; defaults to 1.}
 
-\item{random}{Logical; if \code{TRUE}, include an overall random effect in the APC model, to capture unobserved heterogeneity. Defaults to \code{FALSE}.}
+\item{apc_prior}{(Optional) A string specifying the prior for the age, period, and cohort effects (e.g. \code{"rw1"}, \code{"rw2"}). Defaults to \code{"rw1"}.}
 
-\item{control.compute}{A list of control variables passed to \code{INLA}, that specifies what to be computed during model fitting. See \code{\link[INLA]{control.compute}} for options. Defaults to \code{list(config=TRUE, dic=TRUE, waic=TRUE, cpo=TRUE)}.}
+\item{extra.fixed}{(Optional) If desired, the user can specify additional fixed effects to be added. This is passed as a character argument,
+specifying the name of the variable to be added. Multiple variables can be added by passing a character vector of names.
+Defaults to \code{NULL}.}
 
-\item{binomial.n}{For the \code{family=binomial} likelihood. Either an integer giving the number of trials for the binomial response, or the name of the column containing the number of trials for each observation.}
+\item{extra.random}{(Optional) If desired, the user can specify additional random effects to be added. This is passed as a character argument,
+specifying the name of the variable to be added. Multiple variables can be added by passing a character vector of names.
+Defaults to \code{NULL}.}
 
-\item{poisson.offset}{For the \code{family=poisson} likelihood. Either an integer giving the denominator for the Poisson count response, or the name of the column containing the denominator for each observation.}
+\item{extra.models}{(Optional) If the user specifies one or more additional random effects to be added in \code{extra.random}, this argument can be used to specify the model to be used for the
+additional random effects. Either passed as a single string, in which case all extra random effects are assigned the same model, or a character vector
+matching the length of \code{extra.ranom}, mapping unique models to each variable in \code{extra.random}.
+If \code{NULL} and \code{extra.random} is non-empty, all extra random effects are assigned the "\code{iid}" model in \code{inla()}.
+Defaults to \code{NULL}.}
 
-\item{verbose}{This is argument is passed along to the \code{inla()} function that estimates the MAPC model. If \code{verbose=TRUE}, the \code{inla}-program runs in verbose mode, which can provide more informative error messages.}
+\item{extra.hyper}{(Optional) If the user specifies one or more additional random effects to be added in \code{extra.random}, this argument can be used to specify the priors of the hyperparameters
+of the models used for the random effects. The hyperpriors are specified as strings that can be passed directly to the \code{hyper=...} argument in the formula
+passed to the \code{inla()}-function. See the argument \code{apc_prior} below for a concrete example. Defaults to \code{NULL}, in which case the default \code{INLA} priors are used.}
+
+\item{include.random}{(Optional) Logical; if \code{TRUE}, include an overall random effect in the APC model, to capture unobserved heterogeneity. Defaults to \code{FALSE}.}
+
+\item{binomial.n}{(Optional) For the \code{family=binomial} likelihood. Either an integer giving the number of trials for the binomial response, or the variable in \code{data} containing the number of trials for each observation.}
+
+\item{poisson.offset}{(Optional) For the \code{family=poisson} likelihood. Either an integer giving the denominator for the Poisson count response, or the variable in \code{data} containing the denominator for each observation.}
+
+\item{inla_formula}{(Optional) If desired, the user can pass its own INLA-compatible formula to define the model. If not, a formula is generated automatically, with the models and priors defined.}
+
+\item{lincombs}{(Optional) If desired, the user can pass its own INLA-compatible linear combinations to be computed by the \code{inla} program. See the \code{inla()}-function or \code{f()}-function documentations in \code{INLA} for details.}
+
+\item{survey.design}{(Optional) In the case of complex survey data, explicit handling of unequal sampling probabilities can be required.
+The user can pass a \code{survey.design} object created with the \code{\link[survey]{svydesign}} function from the \pkg{survey} package.
+In this case, a Gaussian model is fit for the survey adjusted estimates, based on the asymptotic normality of Hájek estimator.
+The argument \code{family} should still indicate the underlying distribution of the response, and based on this, an appropriate transformation is applied to the adjusted mean estimates.}
+
+\item{apc_hyperprior}{(Optional) If the user wants non-default hyperpriors for the time effects, this can be achieved by passing the entire
+prior specification as a string. If e.g. \code{hyper =  list(theta = list(prior="pc.prec", param=c(0.5,0.01)))} is desired, pass the string "\code{list(theta = list(prior="pc.prec", param=c(0.5,0.01)))}" to this argument.}
+
+\item{control.compute}{(Optional) A list of control variables passed to the \code{inla()}-function, that specifies what to be computed during model fitting. See options for \code{control.compute} in the \code{INLA} docs.
+Defaults to \code{list(dic=TRUE, waic=TRUE, cpo=TRUE)}.
+If posterior sampling is desired, \code{config=TRUE} must be passed as a control option inside \code{control.compute}.}
+
+\item{verbose}{(Optional) This is argument is passed along to the \code{inla()} function that estimates the MAPC model. If \code{verbose=TRUE}, the \code{inla}-program runs in verbose mode, which can provide more informative error messages.}
 }
 \value{
 An named list, containing the following arguments:
 \describe{
-\item{\code{model_fit}}{An object of class \code{"inla"}, containing posterior densities, posterior summaries, measures of model fit etc. See \code{\link[INLA]{inla}} for details.}
+\item{\code{model_fit}}{An object of class \code{"inla"}, containing posterior densities, posterior summaries, measures of model fit etc. See documentation for the \code{inla()}-function for details.}
 \item{\code{plots}}{A named list of plots for each time effect. Extract them as \code{plots\$age}/\code{plots\$period}\code{plots\$cohort}.}
 }
 }
 \description{
-Takes a raw data frame, converts it to APC format (1-indexed age, period, cohort),
-masks out NA cells in the APC grid, builds the INLA formula and linear combinations,
-and then fits the specified MAPC model via \code{INLA}.
+Fit a Bayesian multivariate age-period-cohort model, and obtain posteriors for identifiable cross-strata contrasts.
+The method is based on Riebler and Held (2010) \doi{10.1093/biostatistics/kxp037}.
+For handling complex survey data, we follow Mercer et al. (2014) \doi{10.1016/j.spasta.2013.12.001},
+implemented using the \pkg{survey} package.
+}
+\details{
+This function works as a wrapper around the \code{inla()}-function from the \code{INLA} package, which executes the model fitting procedures using Integrated Neste Laplace Approximations.
+
+The returned object is of class \code{mapc}. S3 methods are available for:
+\itemize{
+\item \code{print()}: Displays a concise summary of the model, including the APC format used, CPU time,
+number of estimated parameters (fixed, random, hyperparameters, linear combinations), and model fit scores (DIC, WAIC, log-score).
+\item \code{summary()}: Prints detailed posterior summaries of all estimated components, including fixed effects,
+random effects, hyperparameters, and linear combinations, as estimated by the \code{inla()}-function.
+\item \code{plot()}: Visualizes model estimates of cross-stata contrast trends, using precomputed plots stored in the object.
+The available plots depends on the APC-format that was used.
+You can control which effects to plot using the \code{which} argument (e.g. \code{which="age"} or \code{which=c("age", "period")}).
+}
 }
 \examples{
-\dontrun{
+\donttest{
+data("toy_data")
 fit <- fit_MAPC(
-  data               = mydata,
-  response           = deaths,
-  apc_format         = Apc,
-  strata_col         = region,
-  reference_strata   = North,
-  age                = age_group,
-  period             = year,
-  apc_prior          = "rw1",
-  random             = TRUE
+  data               = toy_data,
+  response           = count,
+  family             = "poisson",
+  apc_format         = "ApC",
+  stratify_by        = education,
+  reference_strata   = 1,
+  age                = age,
+  period             = period
 )
+
+# Print concise summary of the MAPC fit and the estimation procedure
+print(fit)
+
+# Plot estimated cross-strata contrast trends
+plot(fit)
+
+# Optional: view full summary of the model (can be long)
+# summary(fit)
 }
 
+
+}
+\references{
+Rue, H., Martino, S., & Chopin, N. (2009). Approximate Bayesian inference for latent Gaussian models by using Integrated Nested Laplace Approximations. \emph{Journal of the Royal Statistical Society: Series B (Statistical Methodology)}, 71(2), 319-392. \doi{10.1111/j.1467-9868.2008.00700.x}
+See also \url{https://www.r-inla.org} for more information about the INLA method and software.
+}
+\seealso{
+\code{\link{fit_all_MAPC}} for fitting multiple models at once,
+and the function \code{inla()} from the \code{INLA} package for the estimation machinery.
+For complex survey data, see \code{\link[survey]{svydesign}} for the creation of a survey design object which can be passed to \code{survey.design}.
 }

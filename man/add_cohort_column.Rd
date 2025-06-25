@@ -21,3 +21,4 @@ Data frame with additional column for birth cohorts added.
 \description{
 Adds a column for birth cohorts to a data frame, derived from specified age and period columns through the relation \code{cohort = period - age}.
 }
+\keyword{internal}

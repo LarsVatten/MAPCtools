@@ -38,14 +38,14 @@ The age, period, and cohort variables must be integer-valued (or coercible to in
 }
 \value{
 A named \code{list} of linear combination objects as returned by
-\code{\link[INLA]{inla.make.lincomb}}. Each element corresponds to one contrast,
+\code{inla.make.lincomb()} (\code{INLA} function). Each element corresponds to one contrast,
 with names of the form \dQuote{Age = x, Strata = y vs ref}, \dQuote{Period = x, Strata = y vs ref},
 or \dQuote{Cohort = x, Strata = y vs ref}, depending on \code{apc_format}.
 }
 \description{
 Constructs a set of linear combinations (contrasts) for age, period, and/or cohort effects
 across different strata, relative to a specified reference strata, suitable for use with
-\code{\link[INLA]{inla.make.lincomb}} in the R-INLA package.
+\code{inla.make.lincomb} from the \code{INLA} package.
 }
 \details{
 For each specified dimension (\code{a}, \code{p}, \code{c}), the function loops over all

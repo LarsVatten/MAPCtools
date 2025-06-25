@@ -21,3 +21,4 @@ Data frame with additional column for cohort indices.
 \description{
 Adds a column for cohort indices to a data frame, derived from specified age and period index columns through the relationship \code{cohort index = period index - age index + max(age index)}.
 }
+\keyword{internal}

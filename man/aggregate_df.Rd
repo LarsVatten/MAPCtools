@@ -14,7 +14,7 @@ aggregate_df(
 \arguments{
 \item{data}{A data frame.}
 
-\item{gaussian}{Gaussian columns in \code{data} to be aggregated. The Gaussian observations are collapsed into an \code{inla.mdata} object compatible with the \code{agaussian} family, see \code{\link[INLA]{agaussian}} for details.
+\item{gaussian}{Gaussian columns in \code{data} to be aggregated. The Gaussian observations are collapsed into an \code{inla.mdata} object compatible with the \code{agaussian} family, see the documentation for the \code{agaussian} family in \code{INLA} for details.
 \strong{Defaults to \code{NULL} (optional).}}
 
 \item{gaussian.precision.scales}{Scales for the precision of Gaussian observations. \cr

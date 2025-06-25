@@ -11,12 +11,13 @@ plot_binned_counts(
   stratify_by = NULL,
   for_each = NULL,
   n_bins = 8,
+  bin_width = NULL,
   title = "Observation counts",
   subtitle = NULL,
   legend_title = NULL,
   x_lab = NULL,
   y_lab = NULL,
-  y_breaks = NULL
+  viridis_color_option = "D"
 )
 }
 \arguments{
@@ -33,7 +34,10 @@ supplied, counts are computed for each combination of \code{x}, bin of \code{bin
 \item{for_each}{(Optional) Additional stratification variable. If supplied,
 separate plot windows are created per level of \code{for_each}.}
 
-\item{n_bins}{(Optional) Number of bins to create across \code{binby}; defaults to 8.}
+\item{n_bins}{(Optional) Number of bins to create across \code{bin_by}; defaults to 8.}
+
+\item{bin_width}{(Optional) Width of the bins created across \code{bin_by}; defaults to NULL.
+Overrides \code{n_bins} if both are supplied.}
 
 \item{title}{(Optional) Plot title; defaults to \code{"Observation counts"}.}
 
@@ -46,8 +50,9 @@ defaults to \code{<name of for_each>: <level of for_each>} for each plot window 
 
 \item{y_lab}{(Optional) Label for the y-axis; defaults to the name of \code{y}.}
 
-\item{y_breaks}{(Optional) Numeric vector of break points for the y-axis;
-defaults to \code{pretty()} over unique values of \code{y}.}
+\item{viridis_color_option}{(Optional) Option for color gradient; defaults to "D".
+Options are "A", "B", "C", "D", E", "F", "G", "H".
+See \pkg{viridis} for information, or experiment yourself.}
 }
 \value{
 If \code{for_each} is not supplied, a \link[ggplot2]{ggplot} object showing counts
@@ -60,22 +65,21 @@ and plots lines for each bin group using \pkg{ggplot2}. If a stratification vari
 is provided, counts are calculated per strata and plotted as separate colored lines.
 If an additional stratification variable is provided, separate plot windows are created for each level.
 }
-\details{
-\itemize{
-\item Uses \link[rlang]{enquo}, \link[rlang]{quo_is_null}, and \link[rlang]{as_label}
-for tidy-evaluation of columns.
-\item Bins are computed via \link[stats]{pretty} on an extended range of \code{bin_by}.
-\item Counts are computed with \link[dplyr]{count}.
-\item Line colors use \link[viridis]{scale_color_viridis_d}.
-\item Faceting is applied with \link[ggplot2]{facet_wrap} when stratifying.
-}
-}
 \examples{
 data("toy_data")
 # Counts by period, binned by age
-plot_binned_counts(toy_data, period, bin_by = age, n_bins = 4)
+plot_binned_counts(toy_data, x = period,
+                   bin_by = age, n_bins = 4)
 # Counts by period, binned by age, stratified by education levels
-plot_binned_counts(toy_data, period, bin_by = age, n_bins = 4, stratify_by = education)
+plot_binned_counts(toy_data, period,
+                   bin_by = age, n_bins = 4,
+                   stratify_by = education)
 # Counts by period, binned by age, stratified by education levels, for each sex
-plot_binned_counts(toy_data, period, bin_by = age, n_bins = 4, stratify_by = education, for_each = sex)
+plot_binned_counts(toy_data, period,
+                   bin_by = age, n_bins = 4,
+                   stratify_by = education, for_each = sex)
+}
+\seealso{
+\code{\link{plot_counts_1D}}, \code{\link{plot_counts_2D}},
+\code{\link{plot_counts_with_mean}}, \code{\link[ggplot2]{ggplot}}
 }

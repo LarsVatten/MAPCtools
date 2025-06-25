@@ -3,3 +3,5 @@
 ^LICENSE\.md$
 ^dev$
 ^_quarto\.yml$
+^doc$
+^Meta$

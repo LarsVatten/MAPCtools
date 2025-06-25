@@ -17,7 +17,7 @@ add_APC_by_match(df, age_name, period_name, age_order, period_order, M = 1)
 
 \item{period_order}{Vector (numeric or character) giving the desired ordering of periods}
 
-\item{M}{Grid factor, given by \eqn{M = \frac{\text{width of age intervals}{width of period intervals}}}}
+\item{M}{Grid factor, defined as the ratio of age interval width to period interval width.}
 }
 \value{
 \if{html}{\out{<div class="sourceCode">}}\preformatted{         Data frame with new columns: age_index, period_index, cohort_index

@@ -26,8 +26,6 @@ agaussian <- function(data, precision.scale = NULL) {
     stop("'data' contains missing values. Please remove or impute them.")
   }
 
-  print(precision.scale)
-
   n <- length(data)
   if (is.null(precision.scale)) {
     precision.scale <- rep(1, n)

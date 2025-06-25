@@ -12,10 +12,9 @@ plot_counts_1D(
   title = "Observation counts",
   subtitle = NULL,
   legend_title = NULL,
-  x_breaks = NULL,
-  y_limits = NULL,
-  y_breaks = NULL,
-  x_label = NULL
+  x_lab = NULL,
+  y_lab = NULL,
+  viridis_color_option = "D"
 )
 }
 \arguments{
@@ -37,15 +36,13 @@ defaults to \code{<name of for_each>: <level of for_each>} for each plot window 
 
 \item{legend_title}{(Optional) Legend title; defaults to name of \code{stratify_var} if it is supplied.}
 
-\item{x_breaks}{(Optional) Numeric vector of break points for the x-axis;
-defaults to \code{pretty()} over unique values of \code{x}.}
-
-\item{y_breaks}{(Optional) Numeric vector of break points for the y-axis;
-defaults to \code{pretty()} over unique values of \code{y}.}
-
 \item{x_lab}{(Optional) Label for the x-axis; defaults to the name of \code{x}.}
 
 \item{y_lab}{(Optional) Label for the y-axis; defaults to the name of \code{y}.}
+
+\item{viridis_color_option}{(Optional) Option for color gradient; defaults to "D".
+Options are "A", "B", "C", "D", E", "F", "G", "H".
+See \pkg{viridis} for information, or experiment yourself.}
 }
 \value{
 A \link[ggplot2]{ggplot} object displaying counts across the variable supplied in \code{x},
@@ -61,9 +58,15 @@ If an additional stratification variable is provided, separate plot windows are 
 \examples{
 data("toy_data")
 # Counts by age
-plot_counts_1D(toy_data, age)
+plot_counts_1D(toy_data, x = age)
 # Counts by age, stratified by education level
-plot_counts_1D(toy_data, age, stratify_by = education)
+plot_counts_1D(toy_data, x = age,
+               stratify_by = education)
 # Count by age, stratified by education level, for each sex
-plot_counts_1D(toy_data, age, stratify_by = education, for_each = sex)
+plot_counts_1D(toy_data, x = age,
+               stratify_by = education, for_each = sex)
+}
+\seealso{
+\code{\link{plot_counts_2D}}, \code{\link{plot_binned_counts}},
+\code{\link{plot_counts_with_mean}}, \code{\link[ggplot2]{ggplot}}
 }

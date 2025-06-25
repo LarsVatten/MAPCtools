@@ -19,12 +19,19 @@
 expected_groups <- function(data, vars) {
   levels_list <- lapply(vars, function(col) {
     col_data <- data[[col]]
-    if (is.factor(col_data)) levels(col_data) else sort(unique(col_data))
+    if (is.factor(col_data)) {
+      # Use existing levels even if not present in the data
+      levels(col_data)
+    } else {
+      sort(unique(col_data))
+    }
   })
   names(levels_list) <- vars
 
-  combo_df <- do.call(expand.grid, c(levels_list, list(stringsAsFactors = FALSE)))
+  combo_df <- expand.grid(levels_list, stringsAsFactors = FALSE)
 
-  list(grid   = combo_df,
-       levels = levels_list)
+  list(
+    grid   = combo_df,
+    levels = levels_list
+  )
 }

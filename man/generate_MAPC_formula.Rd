@@ -9,18 +9,17 @@ generate_MAPC_formula(
   APC_format,
   response,
   stratify_var,
-  apc_prior = "rw1",
-  intercept = F,
-  random_term = TRUE,
   age = "age",
   period = "period",
   cohort = "cohort",
-  age.stratified = NULL,
-  period.stratified = NULL,
-  cohort.stratified = NULL,
+  intercept = FALSE,
+  apc_prior = "rw1",
+  apc_hyper = NULL,
+  random_term = TRUE,
   extra.fixed = NULL,
   extra.random = NULL,
-  random.models = NULL
+  extra.models = NULL,
+  extra.hyper = NULL
 )
 }
 \arguments{
@@ -32,29 +31,29 @@ generate_MAPC_formula(
 
 \item{stratify_var}{Stratification variable. At least one time effect should be stratum-specific, and at least one should be shared.}
 
-\item{apc_prior}{Which prior model to use for the time effects.\cr\strong{Defaults to "rw1" (optional).}}
-
-\item{intercept}{Boolean, indicating if an overall intercept should be included in the formula.\cr\strong{Defaults to TRUE (optional).}}
-
-\item{random_term}{Indicator, indicating if a random term should be included in the model.\cr\strong{Defaults to TRUE (optional).}}
-
 \item{age}{Name of age column}
 
 \item{period}{Name of period column}
 
 \item{cohort}{Name of cohort column}
 
-\item{age.stratified}{Base of age x strata column names. If not provided, defaults to \code{age_<strataify_var>}.\cr The default results in column names \code{age_<stratify_var>_i}, for each age index \eqn{i=1, \dots, I}.}
+\item{intercept}{Boolean, indicating if an overall intercept should be included in the formula.\cr\strong{Defaults to TRUE (optional).}}
 
-\item{period.stratified}{Base of period x strata column names. If not provided, defaults to \code{period_<stratify_var>}.\cr The default results in column names \code{period_<stratify_var>_j}, for each age index \eqn{j=1, \dots, J}.}
+\item{apc_prior}{Which prior model to use for the time effects.\cr\strong{Defaults to "rw1" (optional).}}
 
-\item{cohort.stratified}{Base of cohort x strata column names. If not provided, defaults to \code{cohort_<stratify_var>}.\cr The default results in column names \code{cohort_<stratify_var>_k}, for each age index \eqn{k=1, \dots, K}.}
+\item{apc_hyper}{If the user wants non-default hyperpriors for the random time effects, this can be achieved by passing the entire
+prior specification as a string. If e.g. \code{hyper =  list(theta = list(prior="pc.prec", param=c(0.5,0.01)))} is desired, pass the string "\code{list(theta = list(prior="pc.prec", param=c(0.5,0.01)))}" to this argument.}
+
+\item{random_term}{Indicator, indicating if a random term should be included in the model.\cr\strong{Defaults to TRUE (optional).}}
 
 \item{extra.fixed}{Name of additional fixed effects.\cr\strong{Defaults to NULL (optional).}}
 
 \item{extra.random}{Name of additional random effects.\cr\strong{Defaults to NULL (optional).}}
 
-\item{random.models}{Models for random effects. Supported \code{INLA} models include \code{'iid'}, \code{'rw1'} and \code{'rw2'}.\cr\strong{Defaults to NULL (optional).}}
+\item{extra.models}{Models for additional random effects. Supported \code{INLA} models include \code{'iid'}, \code{'rw1'} and \code{'rw2'}.\cr\strong{Defaults to NULL (optional).}}
+
+\item{extra.hyper}{If the user wants non-default hyperpriors for the additional random effects, this can be achieved by passing the entire
+prior specification as a string. If e.g. \code{hyper =  list(theta = list(prior="pc.prec", param=c(0.5,0.01)))} is desired, pass the string "\code{list(theta = list(prior="pc.prec", param=c(0.5,0.01)))}" to this argument.}
 }
 \value{
 A formula object that can be passed to INLA to fit the desired MAPC model.

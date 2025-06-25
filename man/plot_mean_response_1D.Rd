@@ -14,7 +14,8 @@ plot_mean_response_1D(
   subtitle = NULL,
   legend_title = NULL,
   x_lab = NULL,
-  y_lab = NULL
+  y_lab = NULL,
+  viridis_color_option = "D"
 )
 }
 \arguments{
@@ -41,9 +42,13 @@ defaults to \code{<name of for_each>: <level of for_each>} for each plot window 
 \item{x_lab}{(Optional) Label for the x-axis; defaults to the name of \code{x}.}
 
 \item{y_lab}{(Optional) Label for the y-axis; defaults to the name of \code{paste("Mean", <response_name>)}.}
+
+\item{viridis_color_option}{(Optional) Option for color gradient; defaults to "D".
+Options are "A", "B", "C", "D", E", "F", "G", "H".
+See \pkg{viridis} for information, or experiment yourself.}
 }
 \value{
-A \link[ggplot2]{ggplot} object displaying the mean of the response across the variable supplied in \code{x},
+A \code{\link[ggplot2]{ggplot}} object displaying the mean of the response across the variable supplied in \code{x},
 optionally stratified by \code{stratify_by}. If \code{for_each} is supplied, separate plots are created  in separate windows for each level.
 Visuals can be modified with \pkg{ggplot2}.
 }
@@ -58,7 +63,12 @@ data("toy_data")
 # Mean by age
 plot_mean_response_1D(toy_data, response = count, x = age)
 # Mean count by age, stratified by education
-plot_mean_response_1D(toy_data, response = count, x = age, stratify_by = education)
+plot_mean_response_1D(toy_data, response = count, x = age,
+                      stratify_by = education)
 # Mean count by age, stratified by education, for each sex
-plot_mean_response_1D(toy_data, response = count, x = age, stratify_by = education, for_each = sex)
+plot_mean_response_1D(toy_data, response = count, x = age,
+                      stratify_by = education, for_each = sex)
+}
+\seealso{
+\code{\link{plot_mean_response_2D}}, \code{\link[ggplot2]{ggplot}}
 }

@@ -1,32 +1,20 @@
-# Some useful keyboard shortcuts for package authoring:
-#
-#   Install Package:           'Ctrl + Shift + B'
-#   Check Package:             'Ctrl + Shift + E'
-#   Test Package:              'Ctrl + Shift + T'
-
-# This file serves as a library for analyzing age-period-cohort data,
-# and for fitting Bayesian multivariate APC models with INLA.
-
 ##############################################################################
 ### Imports:
 
 #' @importFrom dplyr %>% setdiff mutate across select distinct arrange all_of
 #' @importFrom dplyr group_by rename n_groups bind_cols cur_data cur_column
 #' @importFrom dplyr n tibble relocate summarise inner_join bind_rows group_vars
-#' @importFrom dplyr group_modify group_vars pull is_grouped_df
-#' @importFrom tidyselect all_of
-#' @importFrom rlang syms sym expr !!!
+#' @importFrom dplyr group_modify group_vars pull is_grouped_df ungroup row_number
+#' @importFrom tidyselect all_of everything matches eval_select
+#' @importFrom rlang syms sym expr !!! eval_tidy := enquo as_name
 #' @importFrom stats as.formula na.omit
-#' @importFrom utils capture.output
 #' @importFrom fastDummies dummy_cols
+#' @importFrom tidyr expand_grid
 #' @importFrom stats setNames
+#' @importFrom tibble as_tibble
 NULL
 ##############################################################################
-### Suppress note due to tidy NSE
 
-utils::globalVariables(c(":=", "eval_select", "eval_tidy"))
-
-##############################################################################
 ### Function for adding cohort to data frame
 
 #' Add cohort column to data frame
@@ -38,11 +26,10 @@ utils::globalVariables(c(":=", "eval_select", "eval_tidy"))
 #' @param period Period column in \code{data}.
 #' @param cohort_name Name of the cohort column to be created. Defaults to \code{"cohort"}.
 #' @return Data frame with additional column for birth cohorts added.
-#' @export
+#' @keywords internal
 
 add_cohort_column <- function(data, age, period, cohort_name="cohort") {
 
-  # Keep quoted and unqoted column names for tidy evaluation
 
   age_q <- resolve_column(enquo(age))
   period_q <- resolve_column(enquo(period))
@@ -54,10 +41,9 @@ add_cohort_column <- function(data, age, period, cohort_name="cohort") {
     stop("The specified age and/or period columns do not exist in the data frame.")
   }
 
-  # Add the cohort column by subtracting the age from the period
   data <- data %>%
     mutate(!!cohort_name := !!period_q - !!age_q) %>%
-    relocate(!!age_q, !!period_q, !!sym(cohort_name), .before = everything())  # Move age, period, and cohort to the front
+    relocate(!!age_q, !!period_q, !!sym(cohort_name), .before = everything())
 
   return(data)
 }
@@ -74,11 +60,10 @@ add_cohort_column <- function(data, age, period, cohort_name="cohort") {
 #' @param period_index Period index column in \code{data}.
 #' @param cohort_name Name of the cohort index column to be created. Defaults to \code{"cohort_index"}.
 #' @return Data frame with additional column for cohort indices.
-#' @export
+#' @keywords internal
 
 add_cohort_index <- function(data, age_index, period_index, cohort_name="cohort_index") {
 
-  # Keep quoted and unqoted column names for tidy evaluation
 
   age_q <- resolve_column(enquo(age_index))
   period_q <- resolve_column(enquo(period_index))
@@ -86,12 +71,10 @@ add_cohort_index <- function(data, age_index, period_index, cohort_name="cohort_
   age_name <- as_name(age_q)
   period_name <- as_name(period_q)
 
-  # Ensure the specified age and period columns exist in the data frame
   if (!all(c(age_name, period_name) %in% names(data))) {
     stop("The specified age and/or period columns do not exist in the data frame.")
   }
 
-  # Add the cohort column by subtracting the age from the period
   data <- data %>%
     mutate(
       !!cohort_name := as.integer(!!period_q - !!age_q + max(!!age_q))
@@ -105,11 +88,11 @@ add_cohort_index <- function(data, age_index, period_index, cohort_name="cohort_
 #' Add 1-indexed age, period and cohort indices via match()
 #'
 #' @param df            Data frame
-#' @param age_name       Name of the age (or age-group) column (string).
-#' @param period_name    Name of the period (e.g. year) column (string).
+#' @param age_name      Name of the age (or age-group) column (string).
+#' @param period_name   Name of the period (e.g. year) column (string).
 #' @param age_order     Character vector giving the desired ordering of age levels
 #' @param period_order  Vector (numeric or character) giving the desired ordering of periods
-#' @param M             Grid factor, given by \eqn{M = \frac{\text{width of age intervals}{width of period intervals}}}
+#' @param M             Grid factor, defined as the ratio of age interval width to period interval width.
 #' @return              Data frame with new columns: age_index, period_index, cohort_index
 #' @keywords internal
 add_APC_by_match <- function(df,
@@ -139,7 +122,7 @@ add_APC_by_match <- function(df,
 #'                        If NULL and the \code{age} column is factor/character, uses \code{unique(sort(data[[age]]))}.
 #' @param period_order    (Optional) Vector (numeric or character) giving the desired order of periods.
 #'                        If NULL and \code{period} column is a factor/character, uses \code{unique(sort(data[[period]]))}.
-#' @param M               Grid factor = (width of age intervals)/(width of period intervals).
+#' @param M               Grid factor, defined as the ratio of age interval width to period interval width.
 #'                        Defaults to 1 (i.e. assuming equal sized age and period increments).
 #' @return                The data frame with new columns \code{age_index}, \code{period_index}, \code{cohort_index},
 #'                        and sorted by \code{(age_index, period_index)}.
@@ -151,18 +134,16 @@ as.APC.df <- function(data,
                       period_order  = NULL,
                       M             = 1) {
 
-  # Keep quoted and unqoted column names for tidy evaluation
 
-  age_q <- resolve_column(enquo(age))
-  period_q <- resolve_column(enquo(period))
+  age_q    <- enquo(age)
+  period_q <- enquo(period)
 
-  age_name <- as_name(age_q)
+  age_name    <- as_name(age_q)
   period_name <- as_name(period_q)
 
   if (!all(c(age_name, period_name) %in% names(data)))
     stop("The specified age and/or period columns do not exist in the data frame.")
 
-  # 2) Decide path: numeric shift vs. match()
   age_vec    <- data[[as_name(enquo(age))]]
   period_vec <- data[[as_name(enquo(period))]]
 
@@ -170,7 +151,6 @@ as.APC.df <- function(data,
     !is.null(age_order)  || !is.null(period_order)
 
   if (use_match) {
-    # if the user didn't supply explicit orders, infer them
     if (is.null(age_order))    age_order    <- sort(unique(age_vec))
     if (is.null(period_order)) period_order <- sort(unique(period_vec))
 
@@ -184,12 +164,10 @@ as.APC.df <- function(data,
     )
   }
 
-  # 3) Purely numeric path: shift so minimum = 1
   age_idx    <- as.integer(age_vec    - min(age_vec,    na.rm=TRUE) + 1)
   period_idx <- as.integer(period_vec - min(period_vec, na.rm=TRUE) + 1)
   cohort_idx <- period_idx - age_idx + max(age_idx, na.rm=TRUE)
 
-  # 4) Bind back, relocate, sort
   data$age_index    <- age_idx
   data$period_index <- period_idx
   data$cohort_index <- cohort_idx
@@ -219,7 +197,7 @@ as.APC.df <- function(data,
 #' This function aggregates the entire data frame into a single row result.
 #'
 #' @param data A data frame.
-#' @param gaussian Gaussian columns in \code{data} to be aggregated. The Gaussian observations are collapsed into an \code{inla.mdata} object compatible with the \code{agaussian} family, see \code{\link[INLA]{agaussian}} for details.
+#' @param gaussian Gaussian columns in \code{data} to be aggregated. The Gaussian observations are collapsed into an \code{inla.mdata} object compatible with the \code{agaussian} family, see the documentation for the \code{agaussian} family in \code{INLA} for details.
 #'   **Defaults to \code{NULL} (optional).**
 #' @param gaussian.precision.scales Scales for the precision of Gaussian observations. \cr
 #'   Must be one of: \cr
@@ -343,7 +321,7 @@ aggregate_df <- function(data,
 #' @param gaussian Gaussian columns in \code{grouped_data} to be aggregated. \cr
 #'   **Defaults to \code{NULL} (optional).**
 #' @param gaussian.precision.scales Scales for the precision of Gaussian observations. \cr
-#'   See \code{\link{aggregate_df}} documentation for format details, and \code{\link[INLA]{agaussian}} for a more theoretical walkthrough.
+#'   See \code{\link{aggregate_df}} documentation for format details, and \code{agaussian} in \code{INLA} for more details.
 #'   **Defaults to NULL.**
 #' @param binomial Binomial columns in \code{grouped_data} to be aggregated. \cr
 #'   **Defaults to \code{NULL} (optional).**
@@ -352,7 +330,7 @@ aggregate_df <- function(data,
 #'   grouping variables, count \code{n} per group, and aggregated list-columns for
 #'   specified variables as returned by \code{\link{aggregate_df}}.
 #'
-#' @export
+#' @keywords internal
 
 aggregate_grouped_df <- function(data,
                                  by,
@@ -360,22 +338,13 @@ aggregate_grouped_df <- function(data,
                                  gaussian.precision.scales = NULL,
                                  binomial = NULL) {
 
-  ## ------------------------------------------------------------------
-  ## 1.  Add a row-id so we know which original rows belong to a group
-  ## ------------------------------------------------------------------
   data <- data %>% mutate(.row_id___ = row_number())
 
-  ## ------------------------------------------------------------------
-  ## 2.  Prepare grouping
-  ## ------------------------------------------------------------------
   gb_expr  <- enquo(by)
   gb_names <- names(eval_select(expr(c(!!gb_expr)), data))
 
   grouped_data <- data %>% group_by(!!!syms(gb_names))
 
-  ## ------------------------------------------------------------------
-  ## 3.  Pre-resolve column selections once (character vectors)
-  ## ------------------------------------------------------------------
   gaussian_cols <- names(eval_select(expr(c(!!!enquos(gaussian,
                                                       .ignore_empty = "all"))),
                                      data))
@@ -383,28 +352,19 @@ aggregate_grouped_df <- function(data,
                                                       .ignore_empty = "all"))),
                                      data))
 
-  ## ------------------------------------------------------------------
-  ## 4.  Evaluate the *full* precision-scale object (may be NULL)
-  ## ------------------------------------------------------------------
-  full_scales <- rlang::eval_tidy(enquo(gaussian.precision.scales), data = data)
+  full_scales <- eval_tidy(enquo(gaussian.precision.scales), data = data)
 
-  ## ------------------------------------------------------------------
-  ## 5.  Aggregate each group
-  ## ------------------------------------------------------------------
   aggregated <- grouped_data %>%
     group_modify(~{
-
-      df <- .x                                # rows for this group
-
-      ## ---- 5a.  Slice scales for this group (if supplied) ------------
+      df <- .x
       scales_this_grp <- NULL
       if (!is.null(full_scales)) {
-        idx <- df$.row_id___                  # original positions
+        idx <- df$.row_id___
 
-        if (is.numeric(full_scales)) {        # single vector case
+        if (is.numeric(full_scales)) {
           scales_this_grp <- full_scales[idx]
 
-        } else if (is.list(full_scales)) {    # named-list case
+        } else if (is.list(full_scales)) {
           scales_this_grp <- lapply(full_scales, `[`, idx)
 
         } else {
@@ -413,7 +373,6 @@ aggregate_grouped_df <- function(data,
         }
       }
 
-      ## ---- 5b.  Call aggregate_df() on *this* group -------------------
       aggregate_df(
         df %>% select(-.row_id___),           # drop helper column
         gaussian  = gaussian_cols,
@@ -467,17 +426,12 @@ as.APC.NA.df <- function(data,
                          cohort,
                          include.random = FALSE) {
 
-  # Input Validation
-
-  # Check data
   if (!is.data.frame(data)) {
     stop("'data' must be a data frame.")
   }
   if (nrow(data) == 0) {
     stop("'data' must not be empty.")
   }
-
-  # Keep quoted and unqoted column names for tidy evaluation
 
   stratify_q <- resolve_column(enquo(stratify_by))
   stratify_name <- as_name(stratify_q)
@@ -490,11 +444,9 @@ as.APC.NA.df <- function(data,
   period_name <- as_name(period_q)
   cohort_name <- as_name(cohort_q)
 
-  # Check column existence in data
   required_cols <- c(age_name, period_name, cohort_name)
   check_cols_exist(required_cols, data)
 
-  # Check data types of core columns
   if (!is.numeric(data[[age_name]])) {
     warning(paste0("Column '", age_name, "' is not numeric. Coercing to numeric. NAs may be introduced."))
     data[[age_name]] <- suppressWarnings(as.numeric(data[[age_name]]))
@@ -511,46 +463,36 @@ as.APC.NA.df <- function(data,
     if (all(is.na(data[[cohort_name]]))) stop(paste("Coercion failed: Column '", cohort_name, "' could not be converted to numeric."))
   }
 
-  # Check suitability of stratify_var column (allow factors, characters, but warn numerics)
   if (is.numeric(data[[stratify_name]])) {
     warning(paste0("Column '", stratify_name, "' is numeric. Treating each unique number as a separate category. Consider converting to factor or character first if this is not intended."))
   }
   if (all(is.na(data[[stratify_name]]))) {
     stop(paste0("The stratification column '", stratify_name, "' contains only NA values."))
   }
-  # Convert stratify_var to factor to ensure consistent level handling by dummy_cols
+
   data[[stratify_name]] <- as.factor(data[[stratify_name]])
   if (nlevels(data[[stratify_name]]) == 0) {
     stop(paste0("The stratification column '", stratify_name, "' has no valid levels after converting to factor (might be all NA or empty)."))
   }
 
-
-  # 6. Check include.random argument
   if (!is.logical(include.random) || length(include.random) != 1) {
     stop("'include.random' must be a single logical value (TRUE or FALSE).")
   }
 
-  # Step 2: Create dummy variables for the stratification variable with a proper prefix
   dummy_df <- dummy_cols(data, select_columns = stratify_name, remove_first_dummy = FALSE, ignore_na = TRUE)
 
   dummy_df <- dummy_df %>%
     select(-all_of(c(age_name, period_name, cohort_name)))
 
-  # Step 3: Get only the (names of) relevant dummy variable columns (starting with "stratify_name_")
   stratify_levels <- grep(paste0("^", stratify_name, "_"), colnames(dummy_df), value = TRUE)
 
-  # Step 4: Multiply each dummy variable with age, period, and cohort
   for (level in stratify_levels) {
     dummy_df[[paste0("age_", level)]] <- dummy_df[[level]] * data[[age_name]]
     dummy_df[[paste0("period_", level)]] <- dummy_df[[level]] * data[[period_name]]
     dummy_df[[paste0("cohort_", level)]] <- dummy_df[[level]] * data[[cohort_name]]
   }
 
-  # Step 5: Replace all 0s with NA
   dummy_df[dummy_df == 0] <- NA
-
-  # Step 6: Select only relevant columns from dummy_df (stratify variables + new columns)
-  # Step 6: select the dummy indicators AND all three interaction sets
 
   interaction_cols <- grep(
     paste0("^(age|period|cohort)_", stratify_name, "_"),
@@ -560,22 +502,18 @@ as.APC.NA.df <- function(data,
   dummy_df <- dummy_df %>%
     select(all_of(stratify_levels), all_of(interaction_cols))
 
-  # Step 7: Bind the new dummy variables back to the original dataframe
   df_new <- bind_cols(dummy_df, data)
 
-  # Step 8: Remove any duplicated column names (e.g., from multiple operations)
   df_new <- df_new %>% select(!matches("\\.\\.\\.[0-9]+"))  # Removes unwanted ...1, ...2 suffixes
 
-  # Step 9: Reorder rows by non-NA values in dummy variables
   ordered_rows <- do.call(bind_rows, lapply(stratify_levels, function(level) {
     df_new[!is.na(df_new[[level]]), ]
   }))
 
   if(include.random) {
-    # Step 10: Assign unique random indices based on stratification
     ordered_rows$random <- rep(NA, nrow(ordered_rows))
     i = 1
-    stratify_levels <- unique(ordered_rows[[stratify_name]]) # Get unique levels of stratifying variable
+    stratify_levels <- unique(ordered_rows[[stratify_name]])
     for (age in 1:max(ordered_rows[[age_name]])) {
       for (period in 1:max(ordered_rows[[period_name]])) {
         for (stratum in stratify_levels) {
@@ -589,7 +527,5 @@ as.APC.NA.df <- function(data,
   }
 
   ordered_rows
-
-  # Step 11: Return the final structured dataframe
   return(as.data.frame(ordered_rows))
 }

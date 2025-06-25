@@ -12,40 +12,90 @@ fit_all_MAPC(
   reference_strata = NULL,
   age = "age",
   period = "period",
+  grid.factor = 1,
+  all_models = c("apC", "aPc", "Apc", "aPC", "ApC", "APc"),
+  extra.fixed = NULL,
+  extra.random = NULL,
+  extra.models = NULL,
+  extra.hyper = NULL,
   apc_prior = "rw1",
-  random = T,
-  control.compute = list(config = TRUE, dic = TRUE, waic = TRUE, cpo = TRUE),
+  include.random = FALSE,
   binomial.n = NULL,
   poisson.offset = NULL,
-  verbose = F
+  apc_hyperprior = NULL,
+  survey.design = NULL,
+  control.compute = list(dic = TRUE, waic = TRUE, cpo = TRUE),
+  track.progress = FALSE,
+  verbose = FALSE
 )
 }
 \arguments{
-\item{data}{A \code{data.frame} containing the raw age, period, response, and stratification variables.}
+\item{data}{A data frame containing the age, period, response, and stratification variables.
+Age and period are assumed to be on the raw scale, not transformed to 1-indexed index columns.
+Factor/character columns are handled, as long as they are properly sorted by \code{sort(unique(data$age/period))} (e.g. values of the form "20-25" for age groups are handled).}
 
 \item{response}{A string naming the response (outcome) variable in \code{data}.}
 
-\item{family}{Likelihood family of the response variable}
+\item{family}{A string indicating the likelihood family. The default is \code{"gaussian"} with identity link.}
 
 \item{stratify_by}{The column in \code{data} to use for stratification.}
 
-\item{reference_strata}{Optional; value(s) of \code{strata_col} to set as the reference level(s). Defaults to \code{NULL}.}
+\item{reference_strata}{Level of \code{stratify_by} to set as the reference level.}
 
 \item{age}{The age column in \code{data}.}
 
 \item{period}{The period column in \code{data}.}
 
-\item{apc_prior}{A string specifying the prior for the age, period, and cohort effects (e.g. \code{"rw1"}, \code{"rw2"}). Defaults to \code{"rw1"}.}
+\item{grid.factor}{(Optional) Grid factor, defined as the ratio of age interval width to period interval width; defaults to 1.}
 
-\item{random}{Logical; if \code{TRUE}, include an overall random effect in the APC model. Defaults to \code{TRUE}.}
+\item{all_models}{(Optional) Character vectors of valid APC-formats (e.g. \code{c("ApC", "apC", "APc"))}, specifying the MAPC models to be estimated.
+Requirements for a valid APC-format (lowercase letter means stratum-specific, uppercase means shared):
+- Only one time effect: shared/stratum-specific both fine.
+- Two time effects: shared/stratum-specific both fine.
+- Three time effects: either one or two must be stratum-specific.
+Defaults to \code{c("apC", "aPc", "Apc", "aPC", "ApC", "APc")}.}
 
-\item{control.compute}{A list of control.compute options passed to \code{INLA} (e.g. \code{config}, \code{dic}, \code{waic}, \code{cpo}). Defaults to \code{list(config=TRUE, dic=TRUE, waic=TRUE, cpo=TRUE)}.}
+\item{extra.fixed}{(Optional) If desired, the user can specify additional fixed effects to be added. This is passed as a character argument,
+specifying the name of the variable to be added. Multiple variables can be added by passing a character vector of names.
+Defaults to \code{NULL}.}
 
-\item{binomial.n}{For the \code{family=binomial} likelihood. Either an integer giving the number of trials for the binomial response, or the name of the column containing the number of trials for each observation.}
+\item{extra.random}{(Optional) If desired, the user can specify additional random effects to be added. This is passed as a character argument,
+specifying the name of the variable to be added. Multiple variables can be added by passing a character vector of names.
+Defaults to \code{NULL}.}
 
-\item{poisson.offset}{For the \code{family=poisson} likelihood. Either an integer giving the denominator for the Poisson count response, or the name of the column containing the denominator for each observation.}
+\item{extra.models}{(Optional) If the user specifies one or more additional random effects to be added in \code{extra.random}, this argument can be used to specify the model to be used for the
+additional random effects. Either passed as a single string, in which case all extra random effects are assigned the same model, or a character vector
+matching the length of \code{extra.ranom}, mapping unique models to each variable in \code{extra.random}.
+If \code{NULL} and \code{extra.random} is non-empty, all extra random effects are assigned the "\code{iid}" model in \code{inla()}.
+Defaults to \code{NULL}.}
 
-\item{verbose}{This is argument is passed along to the \code{inla()} function that estimates the MAPC model. If \code{verbose=TRUE}, the \code{inla}-program runs in verbose mode, which can provide more informative error messages.}
+\item{extra.hyper}{(Optional) If the user specifies one or more additional random effects to be added in \code{extra.random}, this argument can be used to specify the priors of the hyperparameters
+of the models used for the random effects. The hyperpriors are specified as strings that can be passed directly to the \code{hyper=...} argument in the formula
+passed to the \code{inla()}-function. See the argument \code{apc_prior} below for a concrete example. Defaults to \code{NULL}, in which case the default \code{INLA} priors are used.}
+
+\item{apc_prior}{(Optional) A string specifying the prior for the age, period, and cohort effects (e.g. \code{"rw1"}, \code{"rw2"}). Defaults to \code{"rw1"}.}
+
+\item{include.random}{(Optional) Logical; if \code{TRUE}, include an overall random effect in the APC model. Defaults to \code{FALSE}.}
+
+\item{binomial.n}{(Optional) For the \code{family=binomial} likelihood. Either an integer giving the number of trials for the binomial response, or the name of the column containing the number of trials for each observation.}
+
+\item{poisson.offset}{(Optional) For the \code{family=poisson} likelihood. Either an integer giving the denominator for the Poisson count response, or the name of the column containing the denominator for each observation.}
+
+\item{apc_hyperprior}{(Optional) If the user wants non-default hyperpriors for the time effects, this can be achieved by passing the entire
+prior specification as a string. If e.g. \code{hyper =  list(theta = list(prior="pc.prec", param=c(0.5,0.01)))} is desired, pass the string "\code{list(theta = list(prior="pc.prec", param=c(0.5,0.01)))}" to this argument.}
+
+\item{survey.design}{(Optional) In the case of complex survey data, explicit handling of unequal sampling probabilities can be required.
+The user can pass a \code{survey.design} object created with the \code{\link[survey]{svydesign}} function from the \pkg{survey} package.
+In this case, a Gaussian model is fit for the survey adjusted estimates, based on the asymptotic normality of Hájek estimator.
+The argument \code{family} should still indicate the underlying distribution of the response, and based on this, an appropriate transformation is applied to the adjusted mean estimates.}
+
+\item{control.compute}{(Optional) A list of control variables passed to the \code{inla()}-function, that specifies what to be computed during model fitting. See options for \code{control.compute} in the \code{INLA} docs.
+Defaults to \code{list(dic=TRUE, waic=TRUE, cpo=TRUE)}.
+If posterior sampling is desired, \code{config=TRUE} must be passed as a control option inside \code{control.compute}.}
+
+\item{track.progress}{(Optional) Whether to report progress of the estimation of models in the console; defaults to \code{FALSE}.}
+
+\item{verbose}{(Optional) This is argument is passed along to the \code{inla()} function that estimates the MAPC model. If \code{verbose=TRUE}, the \code{inla}-program runs in verbose mode, which can provide more informative error messages.}
 }
 \value{
 A named list of \code{mapc} objects, one for each configuration of shared vs. stratum-specific time effects: APc, ApC, aPC, Apc, aPc, apC.
@@ -61,19 +111,55 @@ Fits all configurations of shared vs. stratum-specific time effects:
 \item{apC}{Shared cohort effects, stratum-specific age and period effects.}
 }
 Uses the \code{\link{fit_MAPC}} function.
+The multivariate APC model is based on Riebler and Held (2010) \doi{10.1093/biostatistics/kxp037}.
+For handling complex survey data, we follow Mercer et al. (2014) \doi{10.1016/j.spasta.2013.12.001},
+implemented using the \pkg{survey} package.
 }
-\examples{
-\dontrun{
-fit <- fit_MAPC(
-  data               = data,
-  response           = deaths,
-  strata_col         = region,
-  reference_strata   = North,
-  age                = age_group,
-  period             = year,
-  apc_prior          = "rw1",
-  random             = TRUE
-)
+\details{
+The returned object is of class \code{all_mapc}, which is a container for multiple \code{mapc} model fits (each typically fitted with a different APC formats).
+It also contains a \code{model_selection} element, which holds plots summarizing comparative fit metrics (DIC, WAIC and log-scores).
+
+The following S3 methods are available:
+\itemize{
+\item \code{print()}: Prints a compact summary for each individual model fit.
+\item \code{summary()}: Calls \code{summary()} on each contained \code{mapc} object, providing detailed posterior summaries.
+\item \code{plot()}: Displays model comparison plots (DIC/WAIC/log-score comparisons).
 }
 
+These methods are intended to streamline multi-model workflows and allow quick comparison of results across model specifications.
+}
+\examples{
+\donttest{
+data("toy_data")
+fits <- fit_all_MAPC(
+  data               = toy_data,
+  response           = count,
+  family             = "poisson",
+  stratify_by        = education,
+  reference_strata   = 1,
+  age                = age,
+  period             = period,
+  apc_prior          = "rw2",
+  include.random     = TRUE
+)
+
+# Print concise summary of the models and estimation procedure
+print(fits)
+
+# Plot comparison plots, based on comparative fit metrics
+plot(fits)
+
+# Optional: view full summary of all models (can be long)
+# summary(fits)
+}
+
+}
+\references{
+Rue, H., Martino, S., & Chopin, N. (2009). Approximate Bayesian inference for latent Gaussian models by using Integrated Nested Laplace Approximations. \emph{Journal of the Royal Statistical Society: Series B (Statistical Methodology)}, 71(2), 319-392. \doi{10.1111/j.1467-9868.2008.00700.x}
+See also \url{https://www.r-inla.org} for more information about the INLA method and software.
+}
+\seealso{
+\code{\link{fit_MAPC}} for fitting a single model (more flexible; can pass your own formula and lincombs),
+and the function \code{inla()} from the \code{INLA} package for the estimation machinery.
+For complex survey data, see \code{\link[survey]{svydesign}} for the creation of a survey design object which can be passed to \code{survey.design}.
 }

@@ -15,9 +15,7 @@ plot_counts_2D(
   legend_title = NULL,
   subtitle = NULL,
   x_lab = NULL,
-  y_lab = NULL,
-  x_breaks = NULL,
-  y_breaks = NULL
+  y_lab = NULL
 )
 }
 \arguments{
@@ -35,7 +33,7 @@ supplied, counts are computed for each combination of \code{x}, \code{y} and
 separate plot windows are created per level of \code{for_each}.}
 
 \item{color_gradient}{(Optional) Color gradient for the heatmap. Specified as a character vector of three colors, representing: c(<low_counts>, <middle_counts>, <high_counts>).
-Defaults to \code{c("blue", "beige", "red")}.}
+Defaults to \code{c("blue", "beige", "red")}. Colors must be recognized by \code{\link[ggplot2]{ggplot}}.}
 
 \item{title}{(Optional) Plot title; defaults to \code{"Observation counts"}.}
 
@@ -47,12 +45,6 @@ defaults to \code{<name of for_each>: <level of for_each>} for each plot window 
 \item{x_lab}{(Optional) Label for the x-axis; defaults to the name of \code{x}.}
 
 \item{y_lab}{(Optional) Label for the y-axis; defaults to the name of \code{y}.}
-
-\item{x_breaks}{(Optional) Numeric vector of break points for the x-axis;
-defaults to \code{pretty()} over unique values of \code{x}.}
-
-\item{y_breaks}{(Optional) Numeric vector of break points for the y-axis;
-defaults to \code{pretty()} over unique values of \code{y}.}
 }
 \value{
 If \code{for_each} is not supplied, a \link[ggplot2]{ggplot} object
@@ -69,9 +61,15 @@ If an additional stratification variable is provided, separate plot windows are 
 \examples{
 data("toy_data")
 # Heatmap of counts by age and period
-plot_counts_2D(toy_data, age, period)
+plot_counts_2D(toy_data, x = age, y = period)
 # Heatmap of counts by age and period, stratified by education
-plot_counts_2D(toy_data, period, age, stratify_by = education)
+plot_counts_2D(toy_data, x = period, y = age,
+               stratify_by = education)
 # Heatmap of counts by age and period, stratified by education, for each sex
-plot_counts_2D(toy_data, period, age, stratify_by = education, for_each = sex)
+plot_counts_2D(toy_data, x = period, y = age,
+               stratify_by = education, for_each = sex)
+}
+\seealso{
+\code{\link{plot_counts_1D}}, \code{\link{plot_binned_counts}},
+\code{\link{plot_counts_with_mean}}, \code{\link[ggplot2]{ggplot}}
 }

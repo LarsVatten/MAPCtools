@@ -6,13 +6,11 @@
 \usage{
 plot_missing_data(
   data,
-  x_var,
-  y_var,
-  row_var = NULL,
-  col_var = NULL,
+  x,
+  y,
+  stratify_by = NULL,
+  for_each = NULL,
   facet_labeller = NULL,
-  x_breaks = NULL,
-  y_breaks = NULL,
   title = "Missing data",
   subtitle = NULL,
   x_lab = NULL,
@@ -22,21 +20,19 @@ plot_missing_data(
 \arguments{
 \item{data}{Data frame.}
 
-\item{x_var}{Variable for the x-axis.}
+\item{x}{Variable in \code{data} whose values define the x-axis.}
 
-\item{y_var}{Variable for the y-axis.}
+\item{y}{Variable in \code{data} whose values define the y-axis.}
 
-\item{row_var}{Grouping variable in \code{data} for facet rows (optional).}
+\item{stratify_by}{(Optional) Stratification variable. If
+supplied, missing data is examined separately for each leves of \code{stratify_by}, and each level gets its own panel.}
 
-\item{col_var}{Grouping variable for facet columns (optional).}
+\item{for_each}{(Optional) Additional stratification variable. If supplied,
+separate plot windows are created per level of \code{for_each}.}
 
 \item{facet_labeller}{A \code{labeller} function (e.g. \code{\link[ggplot2]{labeller}}),
 or a named list where names match facet variables and values are named
 vectors/lists mapping levels to labels (optional).}
-
-\item{x_breaks}{Vector of values for x-axis breaks (optional).}
-
-\item{y_breaks}{Vector of values for y-axis breaks (optional).}
 
 \item{title}{Character string for the plot title. Defaults to "Missing data".}
 
@@ -52,4 +48,19 @@ A ggplot object, or NULL if no missing combinations found.
 \description{
 Creates a tile plot highlighting combinations of grouping variables
 that are expected but missing from the data. Allows for faceting.
+}
+\examples{
+data("toy_data")
+
+# Plot missing data across age and period, stratified by education, for each sex
+plot_missing_data (data        = toy_data,
+                   x           = period,
+                   y           = age,
+                   stratify_by = education,
+                   for_each    = sex)
+
+
+}
+\seealso{
+\code{\link[ggplot2]{ggplot}}
 }

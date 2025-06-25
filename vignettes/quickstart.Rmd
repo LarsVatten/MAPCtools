@@ -1,0 +1,333 @@
+---
+title: "Quickstart: Exploratory Analysis & Model Fitting"
+author: "Lars Vatten"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{Quickstart: Exploratory Analysis & Model Fitting}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r, include = FALSE}
+knitr::opts_chunk$set(
+  collapse = TRUE,
+  comment = "#>",
+  fig.width = 7,
+  fig.height = 4,
+  fig.align = "center"
+)
+```
+
+In this quickstart, the basic functionality of the `MAPCtools` is demonstrated with the help of synthetically generated age-period data frame, called `toydata`. The data frame comes attached with the package, and can be loaded with `data("toy_data")`.
+
+The data frame has variables `age`, `period`, `cohort` (derived from cohort = period - age), education (factor with levels `1`, `2` and `3`), sex (factor with levels `female` and `male`), and `count`, and non-negative integer valued variable.
+
+The variable `count` in `toy_data` is a random sample drawn from a Poisson distribion with known rates for each age, period, cohort, eduacation level and sex. This will be used as the response variable.
+
+Additionally, there is a variable `known_rate`, holding the known rate of the Poisson process from which each sample was drawn.
+
+This quickstart is split into two main components: 1. Exploratory analysis 2. Fitting MAPC models and model-based inference
+
+# 1 Exploratory analysis
+
+## 1.0 Load the toy dataset
+
+First, load the package and the synthetic dataset shipped in /data:
+
+```{r setup}
+library(MAPCtools)
+data("toy_data")
+```
+
+## 1.1 Examine Missing Data
+
+Plot which combinations of `age` and `period` are present or missing: You can add options to executable code like this
+
+```{r plot-missing-data}
+plot_missing_data(toy_data, x = period, y = age)
+```
+
+Stratify by education:
+
+```{r plot-missing-data-stratify}
+plot_missing_data(
+  data = toy_data,
+  x = period,
+  y = age,
+  stratify_by = education
+)
+```
+
+Separate plots for each sex:
+
+```{r plot-missing-data-for-each}
+plot_missing_data(
+  data = toy_data,
+  x = period,
+  y = age,
+  stratify_by = education,
+  for_each = sex
+)
+```
+
+Note that, for both sexes, there are strata where the oldest cohort (represented by the tile at the top left) is unobserved (education level 3 for females and 2 for males). This means that, if education is to be used as stratification variable in the MAPC model and we estimate separate models for each sex, we must trim the data to exclude this cohort. Additionally, the youngest cohort is unobserved in education level 1 and 3, so this cohort must also be removed from the male subset before model fitting.
+
+## 1.2 Examine observation counts
+
+A handful of functions are offered for examining how the samples sizes vary along the temporal axis and across the levels of the stratification variables. 
+
+Remainder that "observation counts" must be distinguished from the response variable `count`.
+
+**1D counts** of `age`, stratified by education, split by sex:
+
+```{r plot-coints-1d}
+plot_counts_1D(
+  toy_data,
+  x = age,
+  stratify_by = education,
+  for_each = sex
+)
+```
+
+**2D counts** across `age` and `period`, same stratification:
+
+```{r plot-counts-2d}
+plot_counts_2D(
+  toy_data,
+  x = age,
+  y = period,
+  stratify_by = education,
+  for_each = sex
+)
+```
+
+**Binned counts** of `age` into 5 bins, by period:
+
+```{r plot-binnd-counts}
+plot_binned_counts(
+  toy_data,
+  x = period,
+  bin_by = age,
+  n_bins = 4,
+  stratify_by = education,
+  for_each = sex
+)
+```
+
+## 1.3 Examine the response
+
+There are analogous functions for examining the distribution of mean of the response variable.
+
+**Mean counts** by `age`:
+
+```{r plot-mean-1d}
+plot_mean_response_1D(
+  toy_data,
+  response = count,
+  x = age,
+  stratify_by = education,
+  for_each = sex
+)
+```
+
+**Mean counts** across `period` and `age`:
+
+```{r plot-mean-2d}
+plot_mean_response_2D(
+  toy_data,
+  response = count,
+  x = period,
+  y = age,
+  stratify_by = education
+)
+```
+
+# 2 Model fitting
+
+## 2.0 Examine known rates
+
+Before we fit the models, we examine the known rates, and how they differ across education levels, for each sex. This tells us what to expect from the MAPC models to be fit.
+
+```{r plot-known-rate}
+require(ggplot2)
+
+# Over age
+ggplot(toy_data, aes(x = age, y = known_rate, color = education)) +
+  stat_summary(fun=mean, geom="line") +
+  facet_wrap(~ sex, ncol = 2) +
+  labs(
+    title = "Poisson rates by age and education level",
+    x = "Age",
+    y = "Rate",
+    color = "Education"
+  ) +
+  scale_color_viridis_d() +
+  theme_minimal() + 
+  theme(plot.title = element_text(hjust=0.5), 
+        legend.position = "bottom")
+
+# Over period
+ggplot(toy_data, aes(x = period, y = known_rate, color = education)) +
+  stat_summary(fun=mean, geom="line") +
+  facet_wrap(~ sex, ncol = 2) +
+  labs(
+    title = "Poisson rates by period and education level",
+    x = "Period",
+    y = "Rate",
+    color = "Education"
+  ) +
+  scale_color_viridis_d() + 
+  theme_minimal() + 
+  theme(plot.title = element_text(hjust=0.5), 
+        legend.position = "bottom")
+
+# Over cohort
+ggplot(toy_data, aes(x = cohort, y = known_rate, color = education)) +
+  stat_summary(fun=mean, geom="line") +
+  facet_wrap(~ sex, ncol = 2) +
+  labs(
+    title = "Poisson rates by cohort and education level",
+    x = "Cohort",
+    y = "Rate",
+    color = "Education"
+  ) +
+  scale_color_viridis_d() +
+  theme_minimal() + 
+  theme(plot.title = element_text(hjust=0.5), 
+        legend.position = "bottom")
+```
+
+As we see, there is a clear trend along the age axis: disparities between education levels increase between ages 20 and 40, and then they decrease between ages 40 and 60.
+
+Along the period axis, disparities are quite similar across the range.
+
+Along the cohort axis, disparities are larger for for the middle cohorts, and less pronounced for the extreme (old and young) cohorts.
+
+Let's see if the MAPC models are able to estime time effects that match these trends.
+
+## 2.1 Fit a single MAPC model with fit_MAPC()
+
+Split the data by sex, and remove unobserved cohorts (see end of section 1.1):
+
+```{r filter-sex}
+require(dplyr)
+toy_data.f <- toy_data %>% filter(sex == "female") %>% subset(cohort > 1931)
+toy_data.m <- toy_data %>% filter(sex == "male") %>% subset(cohort > 1931 & cohort < 1999)
+```
+
+We try an apC model, assuming the cohort effects as similar across strata while age and period effects are specific to each strata:
+```{r fit-apC, eval=FALSE, echo=TRUE}
+apC_fit.f <- fit_MAPC(
+  data = toy_data.f,
+  response = count,
+  family = "poisson",
+  apc_format = "apC",
+  stratify_by = education,
+  reference_strata = 1,
+  age = age,
+  period = period
+)
+
+apC_fit.m <- fit_MAPC(
+  data = toy_data.m,
+  response = count,
+  family = "poisson",
+  apc_format = "apC",
+  stratify_by = education,
+  reference_strata = 1,
+  age = age,
+  period = period
+)
+```
+Since the chunk above requires `INLA`, it is not evaluated. Instead, we download a precomputed fit:
+```{r load-apC-fit, results = 'hide'}
+apC_fit.f <- readRDS(system.file("extdata", "quickstart-apC_fit_f.rds", package = "MAPCtools"))
+apC_fit.m <- readRDS(system.file("extdata", "quickstart-apC_fit_m.rds", package = "MAPCtools"))
+```
+
+The returned objects are of class `mapc`, which has three defined S3 methods:
+
+```{r print-apC-fit}
+print(apC_fit.f)      # Concise summary the model that was fit
+# print(apC_fit.f)
+```
+
+```{r plot-apC-fit-f}
+plot(apC_fit.f)       # Plots estimated cross-strata contrast trends
+```
+
+```{r plot-apC-fit-m}
+plot(apC_fit.m)       # Plots estimated cross-strata contrast trends
+```
+
+The plots are showing mean ratios for the education level with the corresponding color against the reference level, which is 1 here. The estimated cross-strata contrast trends align with the known rates. Looking for example at the index age=40, we see from the plots of the known rates that the rate is around 30 for education level 3 and around 6 for education level 1, which gives a mean ratio of 5. This is what the model estimated. The shape of the trend is also good.
+
+```{r summary-apC-fit}
+# This doesn't print nice in a rmd/qmd file
+# summary(apC_fit)       # Detailed posterior summaries
+```
+
+For further inspection of the posteriors, model fit etc., the `inla` object returned by the `inla()` function after the model fit is recovered from `aPc_fit$model_fit`. This object holds plenty of information.
+
+## 2.2 Fit multiple MAPC models with fit_all_MAPC()
+
+If there is no basis for preferring one configuration of shared vs. stratum-specific effects over another, there is a function to fit multiple at once. By default, it fits all of apC, aPc, Apc, aPC, ApC and APc. If the user wants some other models, a character vector can be passed to the argument `all_models` to specifiy the desired models (see documention of `fit_all_mapc` for valid models).
+
+Here, we fit all 6 default options, for each sex. 
+```{r fit-all-mapc, eval=FALSE, echo=TRUE}
+all_fits.f <- fit_all_MAPC(
+  data = toy_data.f,
+  response = count,
+  family = "poisson",
+  stratify_by = education,
+  reference_strata = 1,
+  age = age,
+  period = period,
+  include.random = TRUE
+)
+
+all_fits.m <- fit_all_MAPC(
+  data = toy_data.m,
+  response = count,
+  family = "poisson",
+  stratify_by = education,
+  reference_strata = 1,
+  age = age,
+  period = period,
+  include.random = TRUE
+)
+```
+Again, we download the precomputed object instead of running the code above: 
+```{r load-all-fits, results = 'hide'}
+all_fits.f <- readRDS(system.file("extdata", "quickstart-all_fits_f.rds", package = "MAPCtools"))
+all_fits.m <- readRDS(system.file("extdata", "quickstart-all_fits_m.rds", package = "MAPCtools"))
+```
+
+The returned object is now of class `all_mapc`, with S3 methods:
+
+print():
+```{r print-all_fits}
+print(all_fits.f)    # concise summary of each model
+# print(all_fits.m)
+```
+
+plot():
+
+Females
+```{r plot-all-fits-f}
+plot(all_fits.f)     # model comparison plots (DIC/WAIC/log-score)
+```
+
+
+Males
+```{r plot-all-fits-m}
+plot(all_fits.m)     # model comparison plots (DIC/WAIC/log-score)
+```
+
+summary():
+```{r summary-all-fits}
+# summary(all_fits.f)  # detailed posterior summaries for each fit
+# summary(all_fits.m)
+```
+
+Each single model fit can be recovred recovered, as `mapc` objects, as fits\$<name_of_fit>.

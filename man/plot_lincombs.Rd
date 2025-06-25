@@ -27,19 +27,19 @@ plot_lincombs(
   period_limits = NULL,
   cohort_breaks = NULL,
   cohort_limits = NULL,
-  PDF_export = F
+  PDF_export = FALSE
 )
 }
 \arguments{
-\item{inla_fit}{An object returned by \code{inla::inla()} containing
-\code{summary.lincomb.derived}.}
+\item{inla_fit}{An object returned by the \code{inla()}-function, containing
+the data frame \code{summary.lincomb.derived}, which holds the posterior summaries of the
+cross strata contrasts from the MAPC model.
+This function assumes that the rownames of the linear combinations are of the specific format produced by \code{\link{generate_apc_lincombs}}.}
 
-\item{apc_model}{Character string of length 1 giving which effects to plot:
-a combination of \code{"a"} (age), \code{"p"} (period), and \code{"c"} (cohort),
-e.g. \code{"ap"}, \code{"apc"}.}
+\item{apc_model}{Character string indicating the configuration of shared vs. stratum-specific time effects in the model.}
 
-\item{data}{A data.frame used to fit \code{inla_fit}, containing columns
-for age, period, cohort, and the strata variable.}
+\item{data}{The data frame used to fit \code{inla_fit}, containing columns
+for age, period, cohort, and the stratification variable.}
 
 \item{strata_col}{Character name of the factor column in \code{data} defining strata.}
 
@@ -95,31 +95,33 @@ Generates ggplot2 line plots of estimated linear combinations
 for age, period, and/or cohort effects from an INLA fit, stratified by a factor.
 Returns a named list of ggplot objects for each requested effect.
 }
-\details{
-The function:
-\itemize{
-\item Extracts linear combination summaries from \code{inla_fit\$summary.lincomb.derived}.
-\item Splits them into age/period/cohort segments based on \code{apc_model}.
-\item Constructs a data.frame of means and 95\% HPD intervals by strata.
-\item Calls an internal \code{plot_time_effect()} to produce the ggplot for each effect.
-}
-}
 \examples{
-\dontrun{
 if (requireNamespace("INLA", quietly = TRUE)) {
-  # Suppose fit_apc is your INLA model with lincomb.derived
-  my_plots <- plot_lincombs(
-    inla_fit    = fit_apc,
-    apc_model   = "apc",
-    data        = my_data,
-    strata_col  = "gender",
-    reference_level = "male",
+  # Load toy dataset
+  data("toy_data")
+
+  # Filter away unobserved cohorts (see plot_missing_data() function):
+  require(dplyr)
+  toy_data.f <- toy_data \%>\% filter(sex == "female") \%>\% subset(cohort > 1931)
+
+  # Load precomputed 'mapc' object
+  apC_fit.f <- readRDS(system.file("extdata", "quickstart-apC_fit_f.rds", package = "MAPCtools"))
+
+  # Extract INLA object:
+  apC_fit.inla <- apC_fit.f$model_fit
+  apC_plots <- plot_lincombs(
+    inla_fit    = apC_fit.inla,
+    apc_model   = "apC",
+    data        = toy_data.f,
+    strata_col  = "education",
+    reference_level = "1",
     family      = "poisson",
-    age_vals    = seq(30, 80, by = 5)
+
   )
   # Display the age effect plot
-  print(my_plots$age)
-  }
+  print(apC_plots$age)
+  # Display the period effect plot
+  print(apC_plots$period)
 }
 
 }

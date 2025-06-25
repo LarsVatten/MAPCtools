@@ -9,13 +9,13 @@ NULL
 #' for age, period, and/or cohort effects from an INLA fit, stratified by a factor.
 #' Returns a named list of ggplot objects for each requested effect.
 #'
-#' @param inla_fit An object returned by \code{inla::inla()} containing
-#'   \code{summary.lincomb.derived}.
-#' @param apc_model Character string of length 1 giving which effects to plot:
-#'   a combination of \code{"a"} (age), \code{"p"} (period), and \code{"c"} (cohort),
-#'   e.g. \code{"ap"}, \code{"apc"}.
-#' @param data A data.frame used to fit \code{inla_fit}, containing columns
-#'   for age, period, cohort, and the strata variable.
+#' @param inla_fit An object returned by the \code{inla()}-function, containing
+#'   the data frame \code{summary.lincomb.derived}, which holds the posterior summaries of the
+#'   cross strata contrasts from the MAPC model.
+#'   This function assumes that the rownames of the linear combinations are of the specific format produced by \code{\link{generate_apc_lincombs}}.
+#' @param apc_model Character string indicating the configuration of shared vs. stratum-specific time effects in the model.
+#' @param data The data frame used to fit \code{inla_fit}, containing columns
+#'   for age, period, cohort, and the stratification variable.
 #' @param strata_col Character name of the factor column in \code{data} defining strata.
 #' @param reference_level Character value of \code{strata_col} to use as the reference.
 #' @param family Optional character; if \code{NULL}, \code{y_lab} defaults to
@@ -45,31 +45,33 @@ NULL
 #' @return A named list of \code{ggplot} objects.  Elements are
 #'   \code{"age"}, \code{"period"}, and/or \code{"cohort"} depending on \code{apc_model}.
 #'
-#' @details
-#' The function:
-#' \itemize{
-#'   \item Extracts linear combination summaries from \code{inla_fit\$summary.lincomb.derived}.
-#'   \item Splits them into age/period/cohort segments based on \code{apc_model}.
-#'   \item Constructs a data.frame of means and 95% HPD intervals by strata.
-#'   \item Calls an internal \code{plot_time_effect()} to produce the ggplot for each effect.
-#' }
-#'
 #' @examples
-#' \dontrun{
 #' if (requireNamespace("INLA", quietly = TRUE)) {
-#'   # Suppose fit_apc is your INLA model with lincomb.derived
-#'   my_plots <- plot_lincombs(
-#'     inla_fit    = fit_apc,
-#'     apc_model   = "apc",
-#'     data        = my_data,
-#'     strata_col  = "gender",
-#'     reference_level = "male",
+#'   # Load toy dataset
+#'   data("toy_data")
+#'
+#'   # Filter away unobserved cohorts (see plot_missing_data() function):
+#'   require(dplyr)
+#'   toy_data.f <- toy_data %>% filter(sex == "female") %>% subset(cohort > 1931)
+#'
+#'   # Load precomputed 'mapc' object
+#'   apC_fit.f <- readRDS(system.file("extdata", "quickstart-apC_fit_f.rds", package = "MAPCtools"))
+#'
+#'   # Extract INLA object:
+#'   apC_fit.inla <- apC_fit.f$model_fit
+#'   apC_plots <- plot_lincombs(
+#'     inla_fit    = apC_fit.inla,
+#'     apc_model   = "apC",
+#'     data        = toy_data.f,
+#'     strata_col  = "education",
+#'     reference_level = "1",
 #'     family      = "poisson",
-#'     age_vals    = seq(30, 80, by = 5)
+#'
 #'   )
 #'   # Display the age effect plot
-#'   print(my_plots$age)
-#'   }
+#'   print(apC_plots$age)
+#'   # Display the period effect plot
+#'   print(apC_plots$period)
 #' }
 #'
 #' @export
@@ -78,7 +80,7 @@ plot_lincombs <- function(inla_fit, apc_model, data, strata_col, reference_level
                           age_title=NULL, period_title=NULL, cohort_title=NULL, y_lab=NULL,
                           age_vals = NULL, period_vals = NULL, cohort_vals = NULL,
                           age_breaks=NULL, age_limits=NULL, period_breaks=NULL, period_limits=NULL, cohort_breaks=NULL, cohort_limits=NULL,
-                          PDF_export=F) {
+                          PDF_export=FALSE) {
 
 
   if(is.null(y_lab)) {
@@ -112,10 +114,13 @@ plot_lincombs <- function(inla_fit, apc_model, data, strata_col, reference_level
 
   apc_format <- str_split(apc_model, "")[[1]]
 
-  age_ids <- min(data[[age_ind]]):max(data[[age_ind]])
-  period_ids <- min(data[[period_ind]]):max(data[[period_ind]])
-  cohort_ids <- min(data[[cohort_ind]]):max(data[[cohort_ind]])
+  age_vals_num <- as.numeric(as.character(data[[age_ind]]))
+  period_vals_num <- as.numeric(as.character(data[[period_ind]]))
+  cohort_vals_num <- as.numeric(as.character(data[[cohort_ind]]))
 
+  age_ids <- sort(unique(age_vals_num))
+  period_ids <- sort(unique(period_vals_num))
+  cohort_ids <- sort(unique(cohort_vals_num))
 
   # Strata
   all_strata <- levels(data[[strata_col]])
@@ -127,25 +132,6 @@ plot_lincombs <- function(inla_fit, apc_model, data, strata_col, reference_level
   color.palette <- viridis(n_strata_diff) # Colors for differences
 
   differences_summary <- inla_fit$summary.lincomb.derived
-
-  # Separate each effect:
-  age_start <- ("a" %in% apc_format) * 1
-  age_end <- ("a" %in% apc_format) * n_strata_diff * max(age_ids)
-  age_inds <- age_start:age_end
-
-  period_start <- ("p" %in% apc_format) * (age_end + 1)
-  period_end <- ("p" %in% apc_format) * (age_end + n_strata_diff * max(period_ids))
-  period_inds <- period_start:period_end
-
-  if (period_end != period_start) {
-    cohort_start <- ("c" %in% apc_format) * (age_end + (period_end-period_start) + 2)
-    cohort_end <- ("c" %in% apc_format) * (cohort_start -1 + n_strata_diff * max(cohort_ids))
-    cohort_inds <- cohort_start:cohort_end
-  } else {
-    cohort_start <- ("c" %in% apc_format) * (age_end + (period_end-period_start) + 1)
-    cohort_end <- ("c" %in% apc_format) * (cohort_start -1 + n_strata_diff * max(cohort_ids))
-    cohort_inds <- cohort_start:cohort_end
-  }
 
   plot_list <- list()
 
@@ -163,8 +149,6 @@ plot_lincombs <- function(inla_fit, apc_model, data, strata_col, reference_level
 
     # Extract labels for differences
     age_labels <- str_extract(rownames(ordered_age_differences), "(?<=Strata = )\\w+")
-
-    print(tail(ordered_age_differences))
 
     age_data <- data.frame(
       median_differences = ordered_age_differences$`0.5quant`,

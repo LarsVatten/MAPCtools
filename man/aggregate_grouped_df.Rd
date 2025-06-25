@@ -21,7 +21,7 @@ aggregate_grouped_df(
 \strong{Defaults to \code{NULL} (optional).}}
 
 \item{gaussian.precision.scales}{Scales for the precision of Gaussian observations. \cr
-See \code{\link{aggregate_df}} documentation for format details, and \code{\link[INLA]{agaussian}} for a more theoretical walkthrough.
+See \code{\link{aggregate_df}} documentation for format details, and \code{agaussian} in \code{INLA} for more details.
 \strong{Defaults to NULL.}}
 
 \item{binomial}{Binomial columns in \code{grouped_data} to be aggregated. \cr
@@ -38,3 +38,4 @@ applying the \code{\link{aggregate_df}} function to each group.
 Aggregation is performed according to sufficient statistics for the specified
 distribution of the columns to be aggregated.
 }
+\keyword{internal}

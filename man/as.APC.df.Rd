@@ -19,7 +19,7 @@ If NULL and the \code{age} column is factor/character, uses \code{unique(sort(da
 \item{period_order}{(Optional) Vector (numeric or character) giving the desired order of periods.
 If NULL and \code{period} column is a factor/character, uses \code{unique(sort(data[[period]]))}.}
 
-\item{M}{Grid factor = (width of age intervals)/(width of period intervals).
+\item{M}{Grid factor, defined as the ratio of age interval width to period interval width.
 Defaults to 1 (i.e. assuming equal sized age and period increments).}
 }
 \value{
