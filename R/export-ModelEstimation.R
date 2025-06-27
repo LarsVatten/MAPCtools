@@ -1093,6 +1093,7 @@ fit_all_MAPC <- function(data, response, family, stratify_by, reference_strata=N
     }, error = function(e) {
       message("Generation of plots gave an error: ", e$message)
       message("Only the model_fit is returned.")
+      plots <- NULL
     })
 
     tryCatch({
@@ -1100,18 +1101,21 @@ fit_all_MAPC <- function(data, response, family, stratify_by, reference_strata=N
     }, error = function(e) {
       message("Couldn't extract CPO score.")
       message("Error: ", e$message)
+      logscores[[apc_format]] <- NA
     })
     tryCatch({
       dic_scores[[apc_format]] <- fit$dic$dic
     }, error = function(e) {
       message("Couldn't extract DIC score.")
       message("Error: ", e$message)
+      dic_scores[[apc_format]] <- NA
     })
     tryCatch({
       waic_scores[[apc_format]] <- fit$waic$waic
     }, error = function(e) {
       message("Couldn't extract WAIC score.")
       message("Error: ", e$message)
+      waic_scores[[apc_format]] <- NA
     })
 
     mod.end <- proc.time()
